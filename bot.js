@@ -17,7 +17,7 @@ const isAdmin = (userId) => ADMIN_IDS.includes(userId);
 
 // Создание таблицы пользователей
 db.serialize(() => {
-  db.run(`« »
+  db.run(`
     CREATE TABLE IF NOT EXISTS users (
       user_id INTEGER PRIMARY KEY,
       course TEXT,
