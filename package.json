@@ -1,0 +1,17 @@
+{
+  "name": "unostschedule",
+  "version": "1.0.0",
+  "description": "",
+  "main": "bot.js",
+  "scripts": {
+    "start": "node bot.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^17.2.3",
+    "grammy": "^1.38.3",
+    "sqlite3": "^5.1.7"
+  }
+}
