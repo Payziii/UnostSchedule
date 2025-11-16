@@ -17,7 +17,7 @@ const isAdmin = (userId) => ADMIN_IDS.includes(userId);
 
 // Создание таблицы пользователей
 db.serialize(() => {
-  db.run(`
+  db.run(`« »
     CREATE TABLE IF NOT EXISTS users (
       user_id INTEGER PRIMARY KEY,
       course TEXT,
@@ -106,6 +106,77 @@ bot.command(['start', 'restart'], async (ctx) => {
 });
 
 // /tomorrow и /week — заглушки
+bot.command('today', async (ctx) => {
+  const userId = ctx.from.id;
+  const user = await getUser(userId);
+
+  if (!user || !user.course || !user.group_name) {
+    await ctx.reply(
+      'Сначала выберите группу: /start'
+    );
+    return;
+  }
+
+  await ctx.reply('Генерирую расписание на сегодня...');
+
+  try {
+    // === Определяем завтрашний день в Екатеринбурге ===
+    const now = new Date();
+    
+    // Форматтер только для дня недели
+    const dayFormatter = new Intl.DateTimeFormat('ru-RU', { 
+      timeZone: 'Asia/Yekaterinburg',
+      weekday: 'long' 
+    });
+    const todayWeekday = dayFormatter.format(now).toUpperCase(); // "ВОСКРЕСЕНЬЕ"
+
+    // Находим индекс текущего дня в массиве
+    const todayIndex = daysOfWeek.indexOf(todayWeekday);
+    if (todayIndex === -1) {
+      throw new Error(`Неверный день недели: ${todayWeekday}`);
+    }
+
+    // Завтрашний индекс (циклически)
+    const tomorrowIndex = (todayIndex) % 7;
+    const day = daysOfWeek[tomorrowIndex]; // "ПОНЕДЕЛЬНИК"
+
+    // === Параметры ===
+    const params = new URLSearchParams({
+      day,
+      group: user.group_name,
+      course: user.course,
+    });
+
+    // === Запрос ===
+    const response = await fetch(`${API_BASE_URL}/o/schedule?${params}`);
+
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`);
+    }
+
+    const contentType = response.headers.get('content-type');
+
+    if (contentType && contentType.includes('image/png')) {
+      const arrayBuffer = await response.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+
+      await ctx.replyWithPhoto(
+        new InputFile(buffer, 'schedule.png'),
+        {
+          caption: `Расписание на *сегодня* — _${day}_\nГруппа: *${user.group_name}*`,
+          parse_mode: 'Markdown',
+        }
+      );
+    } else {
+      const data = await response.json();
+      await ctx.reply(`Ошибка: ${data.status === false ? 'Расписание не найдено' : 'Неизвестная ошибка'}`);
+    }
+  } catch (err) {
+    console.error('Ошибка /tomorrow:', err);
+    await ctx.reply('Не удалось получить расписание. Попробуйте позже.');
+  }
+});
+
 bot.command('tomorrow', async (ctx) => {
   const userId = ctx.from.id;
   const user = await getUser(userId);
