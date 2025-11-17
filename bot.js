@@ -14,6 +14,7 @@ const ADMIN_IDS = process.env.ADMIN_IDS
   ? process.env.ADMIN_IDS.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id))
   : [];
 const isAdmin = (userId) => ADMIN_IDS.includes(userId);
+const broadcastState = new Map();
 
 // Создание таблицы пользователей
 db.serialize(() => {
@@ -73,6 +74,56 @@ const groupKeyboard = (course) => {
     keyboard.text(group, `group_${course}_${group}`).row();
   });
   return keyboard;
+};
+
+// === Хелперы рассылки ===
+
+// Получаем юзеров по фильтру
+const getUsersByFilter = (filter = {}) => {
+  return new Promise((resolve, reject) => {
+    let query = 'SELECT user_id FROM users';
+    const params = [];
+
+    if (filter.course) {
+      query += ' WHERE course = ?';
+      params.push(filter.course);
+    } else if (filter.group_name) {
+      query += ' WHERE group_name = ?';
+      params.push(filter.group_name);
+    }
+
+    db.all(query, params, (err, rows) => {
+      if (err) return reject(err);
+      resolve(rows || []);
+    });
+  });
+};
+
+// Небольшая задержка между отправками, чтобы не ловить лимиты Telegram
+const sleep = (ms) => new Promise(res => setTimeout(res, ms));
+
+const sendBroadcast = async (bot, filter, text) => {
+  const users = await getUsersByFilter(filter);
+  let success = 0;
+  let failed = 0;
+
+  for (const row of users) {
+    const chatId = row.user_id;
+
+    try {
+      await bot.api.sendMessage(chatId, text, { parse_mode: 'Markdown' });
+      success++;
+    } catch (e) {
+      // 403/400 и т.п. просто пропускаем
+      console.error(`Не удалось отправить ${chatId}:`, e.description || e.message);
+      failed++;
+    }
+
+    // задержка ~20 сообщений/сек
+    await sleep(50);
+  }
+
+  return { success, failed, total: users.length };
 };
 
 // === Команды ===
@@ -387,11 +438,39 @@ bot.command('search', async (ctx) => {
   }
 });
 
+// === АДМИНСКАЯ РАССЫЛКА ===
+bot.command('broadcast', async (ctx) => {
+  const userId = ctx.from.id;
+  if (!isAdmin(userId)) {
+    await ctx.reply('Доступ запрещён.');
+    return;
+  }
+
+  broadcastState.set(userId, {
+    stage: 'choose_target',
+    mode: null,
+    filter: {}
+  });
+
+  const keyboard = new InlineKeyboard()
+    .text('Всем', 'bc_all').row()
+    .text('По курсу', 'bc_course').row()
+    .text('По группе', 'bc_group').row()
+    .text('Отмена', 'bc_cancel');
+
+  await ctx.reply(
+    'Выберите аудиторию для рассылки:',
+    { reply_markup: keyboard }
+  );
+});
+
+
 // === Обработка callback ===
 bot.on('callback_query:data', async (ctx) => {
   const data = ctx.callbackQuery.data;
   const userId = ctx.from.id;
 
+  // ===== УЖЕ БЫЛО: выбор курса/группы пользователя =====
   if (data.startsWith('course_')) {
     const course = data.replace('course_', '');
     if (!GROUPS_CONFIG[course]) {
@@ -404,9 +483,10 @@ bot.on('callback_query:data', async (ctx) => {
       reply_markup: groupKeyboard(course),
     });
     await ctx.answerCallbackQuery();
+    return;
   }
 
-  else if (data.startsWith('group_')) {
+  if (data.startsWith('group_')) {
     const [, course, group] = data.split('_');
     await saveUser(userId, course, group);
 
@@ -416,6 +496,138 @@ bot.on('callback_query:data', async (ctx) => {
       { parse_mode: 'Markdown' }
     );
     await ctx.answerCallbackQuery('Группа сохранена!');
+    return;
+  }
+
+  // ===== НОВОЕ: управление рассылкой =====
+  if (!isAdmin(userId)) {
+    await ctx.answerCallbackQuery('Недостаточно прав.', { show_alert: true });
+    return;
+  }
+
+  const state = broadcastState.get(userId);
+  if (!state) {
+    await ctx.answerCallbackQuery('Сессия рассылки не найдена. Введите /broadcast', { show_alert: true });
+    return;
+  }
+
+  if (data === 'bc_cancel') {
+    broadcastState.delete(userId);
+    await ctx.editMessageText('Рассылка отменена.');
+    await ctx.answerCallbackQuery();
+    return;
+  }
+
+  // Выбор "всем"
+  if (data === 'bc_all') {
+    state.mode = 'all';
+    state.filter = {};
+    state.stage = 'await_text';
+    broadcastState.set(userId, state);
+
+    await ctx.editMessageText('Аудитория: *все пользователи*.\n\nОтправьте текст рассылки одним сообщением.',
+      { parse_mode: 'Markdown' }
+    );
+    await ctx.answerCallbackQuery();
+    return;
+  }
+
+  // Выбор "по курсу"
+  if (data === 'bc_course') {
+    state.mode = 'course';
+    state.stage = 'await_course';
+    broadcastState.set(userId, state);
+
+    await ctx.editMessageText(
+      'Аудитория: *по курсу*.\n\nНапишите в ответ номер/название курса **точно так же, как он сохранён в БД**.',
+      { parse_mode: 'Markdown' }
+    );
+    await ctx.answerCallbackQuery();
+    return;
+  }
+
+  // Выбор "по группе"
+  if (data === 'bc_group') {
+    state.mode = 'group';
+    state.stage = 'await_group';
+    broadcastState.set(userId, state);
+
+    await ctx.editMessageText(
+      'Аудитория: *по группе*.\n\nНапишите в ответ название группы **точно так же, как в БД**.',
+      { parse_mode: 'Markdown' }
+    );
+    await ctx.answerCallbackQuery();
+    return;
+  }
+});
+
+bot.on('message:text', async (ctx) => {
+  const userId = ctx.from.id;
+  const text = ctx.message.text;
+
+  // Если это не админ или для него нет состояния рассылки — просто выходим
+  if (!isAdmin(userId)) return;
+
+  const state = broadcastState.get(userId);
+  if (!state) return;
+
+  // Этап: ждём курс
+  if (state.stage === 'await_course') {
+    state.filter = { course: text.trim() };
+    state.stage = 'await_text';
+    broadcastState.set(userId, state);
+
+    await ctx.reply(
+      `Курс установлен: *${state.filter.course}*.\n\nТеперь отправьте текст рассылки одним сообщением.`,
+      { parse_mode: 'Markdown' }
+    );
+    return;
+  }
+
+  // Этап: ждём группу
+  if (state.stage === 'await_group') {
+    state.filter = { group_name: text.trim() };
+    state.stage = 'await_text';
+    broadcastState.set(userId, state);
+
+    await ctx.reply(
+      `Группа установлена: *${state.filter.group_name}*.\n\nТеперь отправьте текст рассылки одним сообщением.`,
+      { parse_mode: 'Markdown' }
+    );
+    return;
+  }
+
+  // Этап: ждём текст рассылки
+  if (state.stage === 'await_text') {
+    const audienceText =
+      state.mode === 'all'
+        ? 'всем пользователям'
+        : state.mode === 'course'
+          ? `курсу: *${state.filter.course}*`
+          : `группе: *${state.filter.group_name}*`;
+
+    await ctx.reply(
+      `✅ Начинаю рассылку ${audienceText}...\n` +
+      `Текст:\n\n` +
+      `-----\n${text}\n-----`
+    );
+
+    try {
+      const result = await sendBroadcast(bot, state.filter, text);
+
+      await ctx.reply(
+        `Готово.\n` +
+        `Всего в выборке: *${result.total}*\n` +
+        `Успешно: *${result.success}*\n` +
+        `Ошибок: *${result.failed}*`,
+        { parse_mode: 'Markdown' }
+      );
+    } catch (e) {
+      console.error('Ошибка при рассылке:', e);
+      await ctx.reply('Произошла ошибка при рассылке. Проверьте логи сервера.');
+    }
+
+    broadcastState.delete(userId);
   }
 });
 
