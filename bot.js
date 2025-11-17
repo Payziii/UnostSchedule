@@ -412,7 +412,7 @@ bot.on('callback_query:data', async (ctx) => {
 
     await ctx.editMessageText(
       `Отлично! Ваша группа: *${group}*\n\n` +
-      `Теперь используйте:\n/tomorrow — расписание на завтра\n/week — на неделю`,
+      `Теперь используйте:\n/today - расписание на сегодня\n/tomorrow — расписание на завтра\n/week — на неделю`,
       { parse_mode: 'Markdown' }
     );
     await ctx.answerCallbackQuery('Группа сохранена!');
