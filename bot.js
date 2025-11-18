@@ -111,7 +111,7 @@ const sendBroadcast = async (bot, filter, text) => {
     const chatId = row.user_id;
 
     try {
-      await bot.api.sendMessage(chatId, text, { parse_mode: 'Markdown' });
+      await bot.api.sendMessage(chatId, text, { parse_mode: 'MarkdownV2' });
       success++;
     } catch (e) {
       // 403/400 и т.п. просто пропускаем
