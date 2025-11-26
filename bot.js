@@ -309,6 +309,7 @@ bot.command('week', async (ctx) => {
   }
 
   const inputUrl = typeof ctx.match === 'string' ? ctx.match.trim() : '';
+  let cl;
 
   await ctx.reply('Генерирую расписание на неделю...');
 
@@ -324,6 +325,7 @@ bot.command('week', async (ctx) => {
       // Простейшая проверка, что это похоже на ссылку
       if (inputUrl.startsWith('http://') || inputUrl.startsWith('https://')) {
         params.append('url', inputUrl);
+        cl = `\nИспользуется [кастомная ссылка](${inputUrl})`
       } else {
         // Опционально: можно предупредить пользователя, если ссылка некорректна
         // или просто проигнорировать
@@ -348,7 +350,7 @@ bot.command('week', async (ctx) => {
       await ctx.replyWithPhoto(
         new InputFile(buffer, 'week_schedule.png'),
         {
-          caption: `Расписание на *неделю*\nГруппа: *${user.group_name}*`,
+          caption: `Расписание на *неделю*\nГруппа: *${user.group_name}*${cl}`,
           parse_mode: 'Markdown',
         }
       );
