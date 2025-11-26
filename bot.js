@@ -304,22 +304,35 @@ bot.command('week', async (ctx) => {
   const user = await getUser(userId);
 
   if (!user || !user.course || !user.group_name) {
-    await ctx.reply(
-      'Сначала выберите группу: /start'
-    );
+    await ctx.reply('Сначала выберите группу: /start');
     return;
   }
+
+  const inputUrl = typeof ctx.match === 'string' ? ctx.match.trim() : '';
 
   await ctx.reply('Генерирую расписание на неделю...');
 
   try {
-    // === Параметры (только group и course) ===
+    // === Параметры ===
     const params = new URLSearchParams({
       group: user.group_name,
       course: user.course,
     });
 
+    // 2. Если пользователь ввел URL, добавляем его в параметры
+    if (inputUrl) {
+      // Простейшая проверка, что это похоже на ссылку
+      if (inputUrl.startsWith('http://') || inputUrl.startsWith('https://')) {
+        params.append('url', inputUrl);
+      } else {
+        // Опционально: можно предупредить пользователя, если ссылка некорректна
+        // или просто проигнорировать
+        console.log('Введенный текст не является ссылкой, пропускаем.');
+      }
+    }
+
     // === Запрос к /o/week ===
+    // params теперь автоматически включит &url=..., если он был добавлен
     const response = await fetch(`${API_BASE_URL}/o/week?${params}`);
 
     if (!response.ok) {
