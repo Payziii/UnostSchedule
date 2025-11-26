@@ -309,7 +309,7 @@ bot.command('week', async (ctx) => {
   }
 
   const inputUrl = typeof ctx.match === 'string' ? ctx.match.trim() : '';
-  let cl;
+  let cl = "";
 
   await ctx.reply('Генерирую расписание на неделю...');
 
