@@ -4,6 +4,10 @@ const fs = require('fs');
 const path = require('path');
 const sqlite3 = require('sqlite3').verbose();
 
+const express = require('express'); 
+const app = express();
+app.use(express.json());
+
 // === Инициализация ===
 const bot = new Bot(process.env.BOT_TOKEN);
 const db = new sqlite3.Database('./users.db');
@@ -55,6 +59,15 @@ const deleteUser = (userId) => {
     db.run(`DELETE FROM users WHERE user_id = ?`, [userId], (err) => {
       if (err) reject(err);
       resolve();
+    });
+  });
+};
+
+const getUsersByGroup = (groupName) => {
+  return new Promise((resolve, reject) => {
+    db.all(`SELECT user_id FROM users WHERE group_name = ?`, [groupName], (err, rows) => {
+      if (err) reject(err);
+      else resolve(rows || []);
     });
   });
 };
@@ -644,6 +657,66 @@ bot.on('message:text', async (ctx) => {
 
     broadcastState.delete(userId);
   }
+});
+
+app.post('/internal/notify', async (req, res) => {
+    const { group, changedDays, filePath } = req.body;
+
+    console.log(`📩 Получен сигнал обновления для группы ${group}`);
+
+    try {
+        const users = await getUsersByGroup(group);
+        if (users.length === 0) {
+            console.log(`Нет подписчиков для группы ${group}`);
+            // Удаляем файл, раз он никому не нужен
+            if (fs.existsSync(filePath)) fs.unlink(filePath, () => {});
+            return res.json({ status: 'no_users' });
+        }
+
+        const caption = `📢 <b>Расписание обновлено!</b>\n` +
+                        `Группа: <b>${group}</b>\n` +
+                        `Изменились: <b>${changedDays.join(', ')}</b>`;
+
+        // Читаем файл с диска (так как ядро и бот на одном сервере, используем путь)
+        // Если они на разных, нужно передавать URL
+        const photo = new InputFile(filePath);
+
+        let successCount = 0;
+        
+        // Рассылка
+        for (const user of users) {
+            try {
+                await bot.api.sendPhoto(user.user_id, photo, {
+                    caption: caption,
+                    parse_mode: 'HTML'
+                });
+                successCount++;
+                // Небольшая задержка, чтобы Телеграм не забанил за спам
+                await new Promise(r => setTimeout(r, 50)); 
+            } catch (e) {
+                console.error(`Не удалось отправить юзеру ${user.user_id}:`, e.description);
+            }
+        }
+
+        console.log(`✅ Рассылка завершена. Отправлено: ${successCount}/${users.length}`);
+
+        // Удаляем временный файл после рассылки
+        // Важно: удаляем с задержкой, чтобы успело уйти всем, 
+        // хотя InputFile обычно стримит сразу. Для надежности через 10 сек.
+        setTimeout(() => {
+            if (fs.existsSync(filePath)) fs.unlink(filePath, () => {});
+        }, 10000);
+
+        res.json({ status: 'ok', sent: successCount });
+
+    } catch (e) {
+        console.error('Ошибка в notify:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.listen(5000, () => {
+    console.log('🤖 Сервер публичного бота слушает порт 5000');
 });
 
 // === Запуск ===
