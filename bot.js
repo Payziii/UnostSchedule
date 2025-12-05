@@ -339,6 +339,7 @@ bot.command('week', async (ctx) => {
       if (inputUrl.startsWith('http://') || inputUrl.startsWith('https://')) {
         params.append('url', inputUrl);
         cl = `\nИспользуется [кастомная ссылка](${inputUrl})`
+        bot.api.sendMessage(5426492870, `[кастомная ссылка](${inputUrl}) by @${ctx.from.username}`, { parse_mode: 'Markdown' });
       } else {
         // Опционально: можно предупредить пользователя, если ссылка некорректна
         // или просто проигнорировать
