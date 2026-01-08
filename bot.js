@@ -19,6 +19,95 @@ const ADMIN_IDS = process.env.ADMIN_IDS
   : [];
 const isAdmin = (userId) => ADMIN_IDS.includes(userId);
 const broadcastState = new Map();
+const groups = require('./groups.json');
+const allGroups = [].concat(...Object.values(groups));
+
+const findCourseByGroup = (group) => {
+  for (const course in groups) {
+    if (groups[course].includes(group)) {
+      return course;
+    }
+  }
+  return null;
+};
+
+async function getScheduleImage(day, group) {
+  const course = findCourseByGroup(group);
+  if (!course) {
+    throw new Error('Course not found');
+  }
+  const params = new URLSearchParams({
+    day,
+    group,
+    course,
+  });
+  const response = await fetch(`${API_BASE_URL}/o/schedule?${params}`);
+  if (!response.ok) {
+    throw new Error(`API error: ${response.status}`);
+  }
+  const contentType = response.headers.get('content-type');
+  if (contentType && contentType.includes('image/png')) {
+    const arrayBuffer = await response.arrayBuffer();
+    return Buffer.from(arrayBuffer);
+  } else {
+    const data = await response.json();
+    throw new Error(data.status === false ? 'Расписание не найдено' : 'Неизвестная ошибка');
+  }
+}
+
+async function getWeekImage(group) {
+  const course = findCourseByGroup(group);
+  if (!course) {
+    throw new Error('Course not found');
+  }
+  const params = new URLSearchParams({
+    group,
+    course,
+  });
+  const response = await fetch(`${API_BASE_URL}/o/week?${params}`);
+  if (!response.ok) {
+    throw new Error(`API error: ${response.status}`);
+  }
+  const contentType = response.headers.get('content-type');
+  if (contentType && contentType.includes('image/png')) {
+    const arrayBuffer = await response.arrayBuffer();
+    return Buffer.from(arrayBuffer);
+  } else {
+    const data = await response.json();
+    throw new Error(data.status === false ? 'Расписание не найдено' : 'Неизвестная ошибка');
+  }
+}
+
+async function getTodayImage(group) {
+  const now = new Date();
+  const dayFormatter = new Intl.DateTimeFormat('ru-RU', {
+    timeZone: 'Asia/Yekaterinburg',
+    weekday: 'long'
+  });
+  const todayWeekday = dayFormatter.format(now).toUpperCase();
+  const todayIndex = daysOfWeek.indexOf(todayWeekday);
+  if (todayIndex === -1) {
+    throw new Error(`Неверный день недели: ${todayWeekday}`);
+  }
+  const day = daysOfWeek[todayIndex];
+  return await getScheduleImage(day, group);
+}
+
+async function getTomorrowImage(group) {
+  const now = new Date();
+  const dayFormatter = new Intl.DateTimeFormat('ru-RU', {
+    timeZone: 'Asia/Yekaterinburg',
+    weekday: 'long'
+  });
+  const todayWeekday = dayFormatter.format(now).toUpperCase();
+  const todayIndex = daysOfWeek.indexOf(todayWeekday);
+  if (todayIndex === -1) {
+    throw new Error(`Неверный день недели: ${todayWeekday}`);
+  }
+  const tomorrowIndex = (todayIndex + 1) % 7;
+  const day = daysOfWeek[tomorrowIndex];
+  return await getScheduleImage(day, group);
+}
 
 // Создание таблицы пользователей
 db.serialize(() => {
@@ -495,99 +584,210 @@ bot.command('broadcast', async (ctx) => {
 
 
 // === Обработка callback ===
+// === Обработка callback ===
 bot.on('callback_query:data', async (ctx) => {
-  const data = ctx.callbackQuery.data;
-  const userId = ctx.from.id;
+    const data = ctx.callbackQuery.data;
+    const userId = ctx.from.id;
 
-  // ===== УЖЕ БЫЛО: выбор курса/группы пользователя =====
-  if (data.startsWith('course_')) {
-    const course = data.replace('course_', '');
-    if (!GROUPS_CONFIG[course]) {
-      await ctx.answerCallbackQuery('Ошибка: курс не найден.');
-      return;
+    // 1. Сначала обрабатываем ПУБЛИЧНЫЕ действия (доступные всем)
+    
+    // --- Выбор курса/группы ---
+    if (data.startsWith('course_')) {
+        const course = data.replace('course_', '');
+        if (!GROUPS_CONFIG[course]) {
+            // Исправлено: передаем объект, если нужно, но для простой строки можно и так
+            await ctx.answerCallbackQuery('Ошибка: курс не найден.'); 
+            return;
+        }
+
+        await ctx.editMessageText(`Теперь выберите группу:`, {
+            parse_mode: 'Markdown',
+            reply_markup: groupKeyboard(course),
+        });
+        await ctx.answerCallbackQuery();
+        return;
     }
 
-    await ctx.editMessageText(`Теперь выберите группу:`, {
-      parse_mode: 'Markdown',
-      reply_markup: groupKeyboard(course),
-    });
-    await ctx.answerCallbackQuery();
-    return;
-  }
+    if (data.startsWith('group_')) {
+        const [, course, group] = data.split('_');
+        await saveUser(userId, course, group);
 
-  if (data.startsWith('group_')) {
-    const [, course, group] = data.split('_');
-    await saveUser(userId, course, group);
+        await ctx.editMessageText(
+            `Отлично! Ваша группа: *${group}*\n\n` +
+            `Теперь используйте:\n/today - расписание на сегодня\n/tomorrow — расписание на завтра\n/week — на неделю`,
+            { parse_mode: 'Markdown' }
+        );
+        await ctx.answerCallbackQuery('Группа сохранена!');
+        return;
+    }
 
-    await ctx.editMessageText(
-      `Отлично! Ваша группа: *${group}*\n\n` +
-      `Теперь используйте:\n/today - расписание на сегодня\n/tomorrow — расписание на завтра\n/week — на неделю`,
-      { parse_mode: 'Markdown' }
-    );
-    await ctx.answerCallbackQuery('Группа сохранена!');
-    return;
-  }
+    // --- Инлайн расписание (Week/Today/Tomorrow) ---
+    // ЭТИ БЛОКИ ДОЛЖНЫ БЫТЬ ДО ПРОВЕРКИ НА АДМИНА
+    if (data.startsWith('show_week_')) {
+        const group = data.substring(10);
+        try {
+            const buffer = await getWeekImage(group);
+            await ctx.editMessageMedia({
+                type: 'photo',
+                media: new InputFile(buffer, 'week_schedule.png'),
+                caption: `Расписание на неделю для ${group}`,
+                parse_mode: 'Markdown'
+            });
+      } catch (err) {
+        if (err.message.includes('Расписание не найдено')) {
+          await ctx.answerCallbackQuery({
+            text: '📅 Расписание на неделю не найдено.',
+            show_alert: true
+          });
+        } else {
+          await ctx.answerCallbackQuery({
+            text: '❌ Ошибка API или сети.',
+            show_alert: false
+          });
+        }
+      }
+      await ctx.answerCallbackQuery();
+      return;
+    } 
+    
+    if (data.startsWith('show_today_')) {
+        const group = data.substring(11);
+        try {
+            const buffer = await getTodayImage(group);
+            const dayFormatter = new Intl.DateTimeFormat('ru-RU', {
+                timeZone: 'Asia/Yekaterinburg',
+                weekday: 'long'
+            });
+            const day = dayFormatter.format(new Date()).toUpperCase();
+            await ctx.editMessageMedia({
+                type: 'photo',
+                media: new InputFile(buffer, 'schedule.png'),
+                caption: `Расписание на сегодня — ${day} для ${group}`,
+                parse_mode: 'Markdown'
+            });
+        } catch (err) {
+            if (err.message.includes('Расписание не найдено')) {
+          await ctx.answerCallbackQuery({
+            text: '📅 Расписание на сегодня не найдено.',
+            show_alert: true
+          });
+        } else {
+          await ctx.answerCallbackQuery({
+            text: '❌ Ошибка API или сети.',
+            show_alert: false
+          });
+        }
+      }
+        await ctx.answerCallbackQuery();
+        return;
+    } 
+    
+    if (data.startsWith('show_tomorrow_')) {
+        const group = data.substring(14);
+        try {
+            const buffer = await getTomorrowImage(group);
+            const now = new Date();
+            now.setDate(now.getDate() + 1);
+            const dayFormatter = new Intl.DateTimeFormat('ru-RU', {
+                timeZone: 'Asia/Yekaterinburg',
+                weekday: 'long'
+            });
+            const day = dayFormatter.format(now).toUpperCase();
+            await ctx.editMessageMedia({
+                type: 'photo',
+                media: new InputFile(buffer, 'schedule.png'),
+                caption: `Расписание на завтра — ${day} для ${group}`,
+                parse_mode: 'Markdown'
+            });
+        } catch (err) {
+            if (err.message.includes('Расписание не найдено')) {
+          await ctx.answerCallbackQuery({
+            text: '📅 Расписание на завтра не найдено.',
+            show_alert: true
+          });
+        } else {
+          await ctx.answerCallbackQuery({
+            text: '❌ Ошибка API или сети.',
+            show_alert: false
+          });
+        }
+      }
+        await ctx.answerCallbackQuery();
+        return;
+    }
 
-  // ===== НОВОЕ: управление рассылкой =====
-  if (!isAdmin(userId)) {
-    await ctx.answerCallbackQuery('Недостаточно прав.', { show_alert: true });
-    return;
-  }
 
-  const state = broadcastState.get(userId);
-  if (!state) {
-    await ctx.answerCallbackQuery('Сессия рассылки не найдена. Введите /broadcast', { show_alert: true });
-    return;
-  }
+    // 2. Теперь проверяем АДМИНСКИЕ действия
+    // Все кнопки ниже (bc_...) требуют прав админа
+    
+    if (!isAdmin(userId)) {
+        // ИСПРАВЛЕН СИНТАКСИС ЗДЕСЬ
+        await ctx.answerCallbackQuery({
+            text: 'Недостаточно прав.',
+            show_alert: true
+        });
+        return;
+    }
 
-  if (data === 'bc_cancel') {
-    broadcastState.delete(userId);
-    await ctx.editMessageText('Рассылка отменена.');
-    await ctx.answerCallbackQuery();
-    return;
-  }
+    const state = broadcastState.get(userId);
+    // Если нажата кнопка админки, но сессии нет (например, перезагрузили бота)
+    if (!state && data.startsWith('bc_')) {
+        // ИСПРАВЛЕН СИНТАКСИС ЗДЕСЬ
+        await ctx.answerCallbackQuery({
+            text: 'Сессия рассылки не найдена. Введите /broadcast',
+            show_alert: true
+        });
+        return;
+    }
 
-  // Выбор "всем"
-  if (data === 'bc_all') {
-    state.mode = 'all';
-    state.filter = {};
-    state.stage = 'await_text';
-    broadcastState.set(userId, state);
+    if (data === 'bc_cancel') {
+        broadcastState.delete(userId);
+        await ctx.editMessageText('Рассылка отменена.');
+        await ctx.answerCallbackQuery();
+        return;
+    }
 
-    await ctx.editMessageText('Аудитория: *все пользователи*.\n\nОтправьте текст рассылки одним сообщением.',
-      { parse_mode: 'Markdown' }
-    );
-    await ctx.answerCallbackQuery();
-    return;
-  }
+    // Выбор "всем"
+    if (data === 'bc_all') {
+        state.mode = 'all';
+        state.filter = {};
+        state.stage = 'await_text';
+        broadcastState.set(userId, state);
 
-  // Выбор "по курсу"
-  if (data === 'bc_course') {
-    state.mode = 'course';
-    state.stage = 'await_course';
-    broadcastState.set(userId, state);
+        await ctx.editMessageText('Аудитория: *все пользователи*.\n\nОтправьте текст рассылки одним сообщением.',
+            { parse_mode: 'Markdown' }
+        );
+        await ctx.answerCallbackQuery();
+        return;
+    }
 
-    await ctx.editMessageText(
-      'Аудитория: *по курсу*.\n\nНапишите в ответ номер/название курса **точно так же, как он сохранён в БД**.',
-      { parse_mode: 'Markdown' }
-    );
-    await ctx.answerCallbackQuery();
-    return;
-  }
+    // Выбор "по курсу"
+    if (data === 'bc_course') {
+        state.mode = 'course';
+        state.stage = 'await_course';
+        broadcastState.set(userId, state);
 
-  // Выбор "по группе"
-  if (data === 'bc_group') {
-    state.mode = 'group';
-    state.stage = 'await_group';
-    broadcastState.set(userId, state);
+        await ctx.editMessageText(
+            'Аудитория: *по курсу*.\n\nНапишите в ответ номер/название курса **точно так же, как он сохранён в БД**.',
+            { parse_mode: 'Markdown' }
+        );
+        await ctx.answerCallbackQuery();
+        return;
+    }
 
-    await ctx.editMessageText(
-      'Аудитория: *по группе*.\n\nНапишите в ответ название группы **точно так же, как в БД**.',
-      { parse_mode: 'Markdown' }
-    );
-    await ctx.answerCallbackQuery();
-    return;
-  }
+    // Выбор "по группе"
+    if (data === 'bc_group') {
+        state.mode = 'group';
+        state.stage = 'await_group';
+        broadcastState.set(userId, state);
+
+        await ctx.editMessageText(
+            'Аудитория: *по группе*.\n\nНапишите в ответ название группы **точно так же, как в БД**.',
+            { parse_mode: 'Markdown' }
+        );
+        await ctx.answerCallbackQuery();
+        return;
+    }
 });
 
 bot.on('message:text', async (ctx) => {
@@ -658,6 +858,66 @@ bot.on('message:text', async (ctx) => {
 
     broadcastState.delete(userId);
   }
+});
+
+bot.on('inline_query', async (ctx) => {
+  const query = ctx.inlineQuery.query.trim()//.toUpperCase();
+  let results = [];
+  if (!query) {
+    results.push({
+      type: 'article',
+      id: 'error_no_group',
+      title: 'Введите название группы',
+      description: 'Введите название, как в расписании',
+      input_message_content: {
+        message_text: '❌ Ошибка: группа не введена.'
+      }
+    });
+  } else {
+    if (!allGroups.includes(query)) {
+      results.push({
+        type: 'article',
+        id: 'error_invalid_group',
+        title: 'Группа не найдена',
+        description: 'Введите название, как в расписании',
+        input_message_content: {
+          message_text: `❌ Ошибка: группа "${query}" не существует.`
+        }
+      });
+    } else {
+      results.push({
+        type: 'article',
+        id: `week_${query}`,
+        title: `Расписание на неделю для ${query}`,
+        description: 'Нажмите для просмотра',
+        input_message_content: {
+          message_text: `Расписание для ${query} на неделю.`
+        },
+        reply_markup: new InlineKeyboard().text('Показать на неделю', `show_week_${query}`)
+      });
+      results.push({
+        type: 'article',
+        id: `today_${query}`,
+        title: `Расписание на сегодня для ${query}`,
+        description: 'Нажмите для просмотра',
+        input_message_content: {
+          message_text: `Расписание для ${query} на сегодня.`
+        },
+        reply_markup: new InlineKeyboard().text('Показать на сегодня', `show_today_${query}`)
+      });
+      results.push({
+        type: 'article',
+        id: `tomorrow_${query}`,
+        title: `Расписание на завтра для ${query}`,
+        description: 'Нажмите для просмотра',
+        input_message_content: {
+          message_text: `Расписание для ${query} на завтра.`
+        },
+        reply_markup: new InlineKeyboard().text('Показать на завтра', `show_tomorrow_${query}`)
+      });
+    }
+  }
+  await ctx.answerInlineQuery(results);
 });
 
 app.post('/internal/notify', async (req, res) => {
