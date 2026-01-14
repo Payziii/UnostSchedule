@@ -204,29 +204,48 @@ const getUsersByFilter = (filter = {}) => {
 // Небольшая задержка между отправками, чтобы не ловить лимиты Telegram
 const sleep = (ms) => new Promise(res => setTimeout(res, ms));
 
-const sendBroadcast = async (bot, filter, text) => {
+async function runBroadcast(bot, adminId, messageId, filter) {
   const users = await getUsersByFilter(filter);
-  let success = 0;
-  let failed = 0;
-
-  for (const row of users) {
-    const chatId = row.user_id;
-
-    try {
-      await bot.api.sendMessage(chatId, text, { parse_mode: 'Markdown' });
-      success++;
-    } catch (e) {
-      // 403/400 и т.п. просто пропускаем
-      console.error(`Не удалось отправить ${chatId}:`, e.description || e.message);
-      failed++;
-    }
-
-    // задержка ~20 сообщений/сек
-    await sleep(50);
+  
+  if (users.length === 0) {
+    await bot.api.sendMessage(adminId, '⚠️ Не найдено пользователей для этой выборки.');
+    return;
   }
 
-  return { success, failed, total: users.length };
-};
+  let success = 0;
+  let blocked = 0; 
+  let errors = 0; 
+
+  await bot.api.sendMessage(adminId, `🚀 Рассылка запущена на **${users.length}** пользователей...`, { parse_mode: 'Markdown' });
+
+  for (const row of users) {
+    const targetId = row.user_id;
+
+    try {
+      await bot.api.copyMessage(targetId, adminId, messageId);
+      success++;
+    } catch (e) {
+      if (e.description && (e.description.includes('blocked') || e.description.includes('kicked'))) {
+        blocked++;
+      } else {
+        console.error(`Ошибка отправки ${targetId}:`, e.message);
+        errors++;
+      }
+    }
+
+    await sleep(50); 
+  }
+
+  await bot.api.sendMessage(
+    adminId, 
+    `🏁 *Рассылка завершена!*\n\n` +
+    `✅ Успешно: ${success}\n` +
+    `🚫 Блок/Удален: ${blocked}\n` +
+    `⚠️ Ошибки: ${errors}\n` +
+    `📊 Всего: ${users.length}`,
+    { parse_mode: 'Markdown' }
+  );
+}
 
 // === Команды ===
 
@@ -790,7 +809,7 @@ bot.on('callback_query:data', async (ctx) => {
     }
 });
 
-bot.on('message:text', async (ctx) => {
+bot.on('message', async (ctx) => {
   const userId = ctx.from.id;
   const text = ctx.message.text;
 
@@ -828,34 +847,8 @@ bot.on('message:text', async (ctx) => {
 
   // Этап: ждём текст рассылки
   if (state.stage === 'await_text') {
-    const audienceText =
-      state.mode === 'all'
-        ? 'всем пользователям'
-        : state.mode === 'course'
-          ? `курсу: *${state.filter.course}*`
-          : `группе: *${state.filter.group_name}*`;
-
-    await ctx.reply(
-      `✅ Начинаю рассылку ${audienceText}...\n` +
-      `Текст:\n\n` +
-      `-----\n${text}\n-----`
-    );
-
-    try {
-      const result = await sendBroadcast(bot, state.filter, text);
-
-      await ctx.reply(
-        `Готово.\n` +
-        `Всего в выборке: *${result.total}*\n` +
-        `Успешно: *${result.success}*\n` +
-        `Ошибок: *${result.failed}*`,
-        { parse_mode: 'Markdown' }
-      );
-    } catch (e) {
-      console.error('Ошибка при рассылке:', e);
-      await ctx.reply('Произошла ошибка при рассылке. Проверьте логи сервера.');
-    }
-
+    const messageId = ctx.message.message_id;
+    runBroadcast(bot, userId, messageId, state.filter);
     broadcastState.delete(userId);
   }
 });
