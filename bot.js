@@ -1,5 +1,5 @@
 require('dotenv').config();
-const { Bot, InputFile, InlineKeyboard } = require('grammy');
+const { Bot, InputFile, InlineKeyboard, GrammyError, HttpError } = require('grammy');
 const fs = require('fs');
 const path = require('path');
 const sqlite3 = require('sqlite3').verbose();
