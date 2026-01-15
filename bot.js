@@ -971,6 +971,19 @@ app.listen(5000, () => {
     console.log('🤖 Сервер публичного бота слушает порт 5000');
 });
 
+bot.catch((err) => {
+  const ctx = err.ctx;
+  console.error(`Error while handling update ${ctx.update.update_id}:`);
+  const e = err.error;
+  if (e instanceof GrammyError) {
+    console.error("Error in request:", e.description);
+  } else if (e instanceof HttpError) {
+    console.error("Could not contact Telegram:", e);
+  } else {
+    console.error("Unknown error:", e);
+  }
+});
+
 // === Запуск ===
 bot.start();
 console.log('Бот запущен...');
