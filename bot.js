@@ -271,25 +271,23 @@ bot.command(['start', 'restart'], async (ctx) => {
     }
   }
 
-  // Запускаем выбор курса
-  await ctx.reply('Выберите курс:', {
+  await ctx.reply('📕 Выберите курс:', {
     reply_markup: courseKeyboard(),
   });
 });
 
-// /tomorrow и /week — заглушки
 bot.command('today', async (ctx) => {
   const userId = ctx.from.id;
   const user = await getUser(userId);
 
   if (!user || !user.course || !user.group_name) {
     await ctx.reply(
-      'Сначала выберите группу: /start'
+      '❌ Сначала выберите группу: /start'
     );
     return;
   }
 
-  await ctx.reply('Генерирую расписание на сегодня...');
+  await ctx.reply('⌛ Генерирую расписание на сегодня...');
 
   try {
     // === Определяем завтрашний день в Екатеринбурге ===
@@ -335,17 +333,17 @@ bot.command('today', async (ctx) => {
       await ctx.replyWithPhoto(
         new InputFile(buffer, 'schedule.png'),
         {
-          caption: `Расписание на *сегодня* — _${day}_\nГруппа: *${user.group_name}*`,
+          caption: `📅 Расписание на *сегодня* — _${day}_\nГруппа: *${user.group_name}*`,
           parse_mode: 'Markdown',
         }
       );
     } else {
       const data = await response.json();
-      await ctx.reply(`Ошибка: ${data.status === false ? 'Расписание не найдено' : 'Неизвестная ошибка'}`);
+      await ctx.reply(`❌ Ошибка: ${data.status === false ? 'Расписание не найдено' : 'Неизвестная ошибка'}`);
     }
   } catch (err) {
     console.error('Ошибка /tomorrow:', err);
-    await ctx.reply('Не удалось получить расписание. Попробуйте позже.');
+    await ctx.reply('❌ Не удалось получить расписание. Попробуйте позже.');
   }
 });
 
@@ -355,12 +353,12 @@ bot.command('tomorrow', async (ctx) => {
 
   if (!user || !user.course || !user.group_name) {
     await ctx.reply(
-      'Сначала выберите группу: /start'
+      '❌ Сначала выберите группу: /start'
     );
     return;
   }
 
-  await ctx.reply('Генерирую расписание на завтра...');
+  await ctx.reply('⌛ Генерирую расписание на завтра...');
 
   try {
     // === Определяем завтрашний день в Екатеринбурге ===
@@ -406,17 +404,17 @@ bot.command('tomorrow', async (ctx) => {
       await ctx.replyWithPhoto(
         new InputFile(buffer, 'schedule.png'),
         {
-          caption: `Расписание на *завтра* — _${day}_\nГруппа: *${user.group_name}*`,
+          caption: `📅 Расписание на *завтра* — _${day}_\nГруппа: *${user.group_name}*`,
           parse_mode: 'Markdown',
         }
       );
     } else {
       const data = await response.json();
-      await ctx.reply(`Ошибка: ${data.status === false ? 'Расписание не найдено' : 'Неизвестная ошибка'}`);
+      await ctx.reply(`❌ Ошибка: ${data.status === false ? 'Расписание не найдено' : 'Неизвестная ошибка'}`);
     }
   } catch (err) {
     console.error('Ошибка /tomorrow:', err);
-    await ctx.reply('Не удалось получить расписание. Попробуйте позже.');
+    await ctx.reply('❌ Не удалось получить расписание. Попробуйте позже.');
   }
 });
 
@@ -425,14 +423,14 @@ bot.command('week', async (ctx) => {
   const user = await getUser(userId);
 
   if (!user || !user.course || !user.group_name) {
-    await ctx.reply('Сначала выберите группу: /start');
+    await ctx.reply('❌ Сначала выберите группу: /start');
     return;
   }
 
   const inputUrl = typeof ctx.match === 'string' ? ctx.match.trim() : '';
   let cl = "";
 
-  await ctx.reply('Генерирую расписание на неделю...');
+  await ctx.reply('⌛ Генерирую расписание на неделю...');
 
   try {
     // === Параметры ===
@@ -472,17 +470,17 @@ bot.command('week', async (ctx) => {
       await ctx.replyWithPhoto(
         new InputFile(buffer, 'week_schedule.png'),
         {
-          caption: `Расписание на *неделю*\nГруппа: *${user.group_name}*${cl}`,
+          caption: `📅 Расписание на *неделю*\nГруппа: *${user.group_name}*${cl}`,
           parse_mode: 'Markdown',
         }
       );
     } else {
       const data = await response.json();
-      await ctx.reply(`Ошибка: ${data.status === false ? 'Расписание не найдено' : 'Неизвестная ошибка'}`);
+      await ctx.reply(`❌ Ошибка: ${data.status === false ? 'Расписание не найдено' : 'Неизвестная ошибка'}`);
     }
   } catch (err) {
     console.error('Ошибка /week:', err);
-    await ctx.reply('Не удалось получить расписание на неделю. Попробуйте позже.');
+    await ctx.reply('❌ Не удалось получить расписание на неделю. Попробуйте позже.');
   }
 });
 
@@ -492,7 +490,7 @@ bot.command('week', async (ctx) => {
 bot.command('stats', async (ctx) => {
   const userId = ctx.from.id;
   if (!isAdmin(userId)) {
-    await ctx.reply('Доступ запрещён.');
+    await ctx.reply('❌ Доступ запрещён.');
     return;
   }
 
@@ -544,7 +542,7 @@ bot.command('stats', async (ctx) => {
 bot.command('search', async (ctx) => {
   const userId = ctx.from.id;
   if (!isAdmin(userId)) {
-    await ctx.reply('Доступ запрещён.');
+    await ctx.reply('❌ Доступ запрещён.');
     return;
   }
 
@@ -579,7 +577,7 @@ bot.command('search', async (ctx) => {
 bot.command('broadcast', async (ctx) => {
   const userId = ctx.from.id;
   if (!isAdmin(userId)) {
-    await ctx.reply('Доступ запрещён.');
+    await ctx.reply('❌ Доступ запрещён.');
     return;
   }
 
@@ -615,11 +613,11 @@ bot.on('callback_query:data', async (ctx) => {
         const course = data.replace('course_', '');
         if (!GROUPS_CONFIG[course]) {
             // Исправлено: передаем объект, если нужно, но для простой строки можно и так
-            await ctx.answerCallbackQuery('Ошибка: курс не найден.'); 
+            await ctx.answerCallbackQuery('❌ Ошибка: курс не найден.'); 
             return;
         }
 
-        await ctx.editMessageText(`Теперь выберите группу:`, {
+        await ctx.editMessageText(`📖 Теперь выберите группу:`, {
             parse_mode: 'Markdown',
             reply_markup: groupKeyboard(course),
         });
@@ -636,7 +634,7 @@ bot.on('callback_query:data', async (ctx) => {
             `Теперь используйте:\n/today - расписание на сегодня\n/tomorrow — расписание на завтра\n/week — на неделю`,
             { parse_mode: 'Markdown' }
         );
-        await ctx.answerCallbackQuery('Группа сохранена!');
+        await ctx.answerCallbackQuery('✅ Группа сохранена!');
         return;
     }
 
@@ -929,7 +927,7 @@ app.post('/internal/notify', async (req, res) => {
 
         const caption = `📢 <b>Расписание обновлено!</b>\n` +
                         `Группа: <b>${group}</b>\n` +
-                        `Изменились: <b>${changedDays.join(', ')}</b>`;
+                        `Дни изменились: <b>${changedDays.join(', ')}</b>`;
 
         // Читаем файл с диска (так как ядро и бот на одном сервере, используем путь)
         // Если они на разных, нужно передавать URL
