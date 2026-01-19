@@ -912,7 +912,7 @@ bot.on('inline_query', async (ctx) => {
 });
 
 app.post('/internal/notify', async (req, res) => {
-    const { group, changedDays, filePath } = req.body;
+    const { group, changedDays, filePath, url } = req.body;
 
     console.log(`📩 Получен сигнал обновления для группы ${group}`);
 
@@ -927,7 +927,8 @@ app.post('/internal/notify', async (req, res) => {
 
         const caption = `📢 <b>Расписание обновлено!</b>\n` +
                         `Группа: <b>${group}</b>\n` +
-                        `Дни изменились: <b>${changedDays.join(', ')}</b>`;
+                        `Дни изменились: <b>${changedDays.join(', ')}</b>` +
+                        `Ссылка на таблицу: <a href="${url}">Клик</a>`;
 
         // Читаем файл с диска (так как ядро и бот на одном сервере, используем путь)
         // Если они на разных, нужно передавать URL
