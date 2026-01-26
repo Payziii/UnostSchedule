@@ -333,7 +333,7 @@ bot.command('today', async (ctx) => {
       await ctx.replyWithPhoto(
         new InputFile(buffer, 'schedule.png'),
         {
-          caption: `![🆕](tg://emoji?id=5886306834410640699) Расписание на *сегодня* — _${day}_\nГруппа: *${user.group_name}*`,
+          caption: `📅 Расписание на *сегодня* — _${day}_\nГруппа: *${user.group_name}*`,
           parse_mode: 'Markdown',
         }
       );
