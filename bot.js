@@ -508,7 +508,7 @@ bot.command('stats', async (ctx) => {
     });
 
     const byGroup = await new Promise((resolve) => {
-      db.all('SELECT group_name, COUNT(*) as count FROM users GROUP BY group_name ORDER BY count DESC LIMIT 10', (err, rows) => {
+      db.all('SELECT group_name, COUNT(*) as count FROM users GROUP BY group_name ORDER BY count DESC LIMIT 50', (err, rows) => {
         resolve(err ? [] : rows);
       });
     });
