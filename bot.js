@@ -491,8 +491,7 @@ bot.command('search', async (ctx) => {
     return await ctx.reply('❌ Введите название предмета/преподавателя/кабинета. Например:\n/search 409\n/search Оснащение\n/search Гобов');
   }
 
-  if (typeof query === 'string' && query.length < 4 ||
-    typeof query === 'number' && Math.floor(Math.abs(query)).toString().length < 2) {
+  if (query.length < 4 && (isNaN(+query) || query.length < 2)) {
       return await ctx.reply('❌ Слишком короткие запросы запрещены!');
     }
 
