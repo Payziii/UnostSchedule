@@ -488,7 +488,7 @@ bot.command('query', async (ctx) => {
   const query = typeof ctx.match === 'string' ? ctx.match.trim() : '';
 
   if(!query) {
-    return await ctx.reply('❌ Введите название предмета/преподавателя/кабинета. Например:\n/search 409\n/search Оснащение\n/search Гобов');
+    return await ctx.reply('❌ Введите название предмета/преподавателя/кабинета. Например:\n/query 409\n/query Оснащение\n/query Гобов');
   }
 
   if (query.length < 4 && (isNaN(+query) || query.length < 2)) {
