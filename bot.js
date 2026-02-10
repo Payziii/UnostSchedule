@@ -522,7 +522,7 @@ bot.command('search', async (ctx) => {
       await ctx.reply(`❌ Ошибка: ${data.status === false ? 'Расписание не найдено' : 'Неизвестная ошибка'}`);
     }
   } catch (err) {
-    console.error('Ошибка /week:', err);
+    console.error('Ошибка /search:', err);
     await ctx.reply('❌ Не удалось получить расписание на неделю. Попробуйте позже.');
   }
 });
