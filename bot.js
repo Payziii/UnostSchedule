@@ -586,7 +586,7 @@ bot.command('stats', async (ctx) => {
 });
 
 // /search <id> — поиск пользователя по ID
-bot.command('search', async (ctx) => {
+bot.command('search-2', async (ctx) => {
   const userId = ctx.from.id;
   if (!isAdmin(userId)) {
     await ctx.reply('❌ Доступ запрещён.');
