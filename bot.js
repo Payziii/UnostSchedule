@@ -604,7 +604,7 @@ bot.command('search', async (ctx) => {
   try {
     const user = await getUser(targetId);
     if (!user) {
-      await ctx.reply(`Пользователь *${targetId}* не найден в базе.`);
+      await ctx.reply(`Пользователь *${targetId}* не найден в базе.`, { parse_mode: 'Markdown' });
       return;
     }
 
