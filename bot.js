@@ -484,7 +484,7 @@ bot.command('week', async (ctx) => {
   }
 });
 
-bot.command('search', async (ctx) => {
+bot.command('query', async (ctx) => {
   const query = typeof ctx.match === 'string' ? ctx.match.trim() : '';
 
   if(!query) {
@@ -586,7 +586,7 @@ bot.command('stats', async (ctx) => {
 });
 
 // /search <id> — поиск пользователя по ID
-bot.command('search-2', async (ctx) => {
+bot.command('search', async (ctx) => {
   const userId = ctx.from.id;
   if (!isAdmin(userId)) {
     await ctx.reply('❌ Доступ запрещён.');
