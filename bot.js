@@ -484,6 +484,53 @@ bot.command('week', async (ctx) => {
   }
 });
 
+bot.command('query', async (ctx) => {
+  const query = typeof ctx.match === 'string' ? ctx.match.trim() : '';
+
+  if(!query) {
+    return await ctx.reply('❌ Введите название предмета/преподавателя/кабинета. Например:\n/query 409\n/query Оснащение\n/query Гобов');
+  }
+
+  if (query.length < 4 && (isNaN(+query) || query.length < 2)) {
+      return await ctx.reply('❌ Слишком короткие запросы запрещены!');
+    }
+
+  await ctx.reply('⌛ Генерирую расписание на неделю...');
+
+  try {
+    const params = new URLSearchParams({
+      query: query
+    });
+
+    const response = await fetch(`${API_BASE_URL}/o/search?${params}`);
+
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`);
+    }
+
+    const contentType = response.headers.get('content-type');
+
+    if (contentType && contentType.includes('image/png')) {
+      const arrayBuffer = await response.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+
+      await ctx.replyWithPhoto(
+        new InputFile(buffer, 'week_schedule.png'),
+        {
+          caption: `📅 Расписание на *неделю*\nЗапрос: *${query}*`,
+          parse_mode: 'Markdown',
+        }
+      );
+    } else {
+      const data = await response.json();
+      await ctx.reply(`❌ Ошибка: ${data.status === false ? 'Расписание не найдено' : 'Неизвестная ошибка'}`);
+    }
+  } catch (err) {
+    console.error('Ошибка /search:', err);
+    await ctx.reply('❌ Не удалось получить расписание на неделю. Попробуйте позже.');
+  }
+});
+
 // === АДМИНСКИЕ КОМАНДЫ ===
 
 // /stats — статистика пользователей
@@ -557,7 +604,7 @@ bot.command('search', async (ctx) => {
   try {
     const user = await getUser(targetId);
     if (!user) {
-      await ctx.reply(`Пользователь *${targetId}* не найден в базе.`);
+      await ctx.reply(`Пользователь *${targetId}* не найден в базе.`, { parse_mode: 'Markdown' });
       return;
     }
 
