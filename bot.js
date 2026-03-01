@@ -879,7 +879,7 @@ bot.on('message', async (ctx) => {
 
   // Этап: ждём группу
   if (state.stage === 'await_group') {
-    state.filter = { group_name: text.trim() };
+    state.filter = { group_name: text.trim() }; 
     state.stage = 'await_text';
     broadcastState.set(userId, state);
 
