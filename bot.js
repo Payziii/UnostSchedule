@@ -531,6 +531,38 @@ bot.command('query', async (ctx) => {
   }
 });
 
+bot.command('rasp', async (ctx) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/o/rasp`);
+
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`);
+    }
+
+    const contentType = response.headers.get('content-type');
+
+    if (contentType && contentType.includes('image/png')) {
+      const arrayBuffer = await response.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+
+      await ctx.replyWithPhoto(
+        new InputFile(buffer, 'rasp_.png'),
+        {
+          caption: `📅 Расписание звонков`,
+          parse_mode: 'Markdown',
+        }
+      );
+    } else {
+      const data = await response.json();
+      await ctx.reply(`❌ Ошибка: ${data.status === false ? 'Расписание звонков не найдено' : 'Неизвестная ошибка'}`);
+    }
+  }
+  catch (err) {
+    console.error('Ошибка /rasp:', err);
+    await ctx.reply('❌ Не удалось получить расписание звонков. Попробуйте позже.');
+  }
+});
+
 // === АДМИНСКИЕ КОМАНДЫ ===
 
 // /stats — статистика пользователей
