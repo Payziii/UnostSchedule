@@ -77,4 +77,11 @@ const getStats = () => new Promise((resolve, reject) => {
   });
 });
 
-module.exports = { db, getUser, saveUser, deleteUser, getUsersByGroup, getUsersByFilter, getStats };
+const getUserGroup = (userId) => new Promise((resolve, reject) => {
+  db.get(`SELECT group_name FROM users WHERE user_id = ?`, [userId], (err, row) => {
+    if (err) return reject(err);
+    resolve(row ? row.group_name : null);
+  });
+});
+
+module.exports = { db, getUser, saveUser, deleteUser, getUsersByGroup, getUsersByFilter, getStats, getUserGroup };
