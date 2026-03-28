@@ -20,30 +20,20 @@ const registerInline = (bot) => {
           input_message_content: { message_text: '❌ Ошибка: группа не введена.' }
         });
       } else {
-        results.push({
-        type: 'article',
-        id: `week_${userGroup}`,
-        title: `Расписание на неделю для ${userGroup}`,
-        description: 'Нажмите для просмотра',
-        input_message_content: { message_text: `Расписание для ${userGroup} на неделю.` },
-        reply_markup: new InlineKeyboard().text('Показать на неделю', `show_week_${userGroup}`)
-      });
-      results.push({
-        type: 'article',
-        id: `today_${userGroup}`,
-        title: `Расписание на сегодня для ${userGroup}`,
-        description: 'Нажмите для просмотра',
-        input_message_content: { message_text: `Расписание для ${userGroup}} на сегодня.` },
-        reply_markup: new InlineKeyboard().text('Показать на сегодня', `show_today_${userGroup}`)
-      });
-      results.push({
-        type: 'article',
-        id: `tomorrow_${userGroup}`,
-        title: `Расписание на завтра для ${userGroup}`,
-        description: 'Нажмите для просмотра',
-        input_message_content: { message_text: `Расписание для ${userGroup} на завтра.` },
-        reply_markup: new InlineKeyboard().text('Показать на завтра', `show_tomorrow_${userGroup}`)
-      });
+        for (const [suffix, label, btn] of [
+          ['week', 'на неделю', 'Показать на неделю'],
+          ['today', 'на сегодня', 'Показать на сегодня'],
+          ['tomorrow', 'на завтра', 'Показать на завтра'],
+        ]) {
+          results.push({
+            type: 'article',
+            id: `${suffix}_${userGroup}`,
+            title: `Расписание ${label} для ${userGroup}`,
+            description: 'Нажмите для просмотра',
+            input_message_content: { message_text: `Расписание для ${userGroup} ${label}.` },
+            reply_markup: new InlineKeyboard().text(btn, `show_${suffix}_${userGroup}`)
+          });
+        }
       }
     } else if (!allGroups.includes(query)) {
       results.push({
@@ -54,30 +44,20 @@ const registerInline = (bot) => {
         input_message_content: { message_text: `❌ Группа "${query}" не существует.` }
       });
     } else {
-      results.push({
-        type: 'article',
-        id: `week_${query}`,
-        title: `Расписание на неделю для ${query}`,
-        description: 'Нажмите для просмотра',
-        input_message_content: { message_text: `Расписание для ${query} на неделю.` },
-        reply_markup: new InlineKeyboard().text('Показать на неделю', `show_week_${query}`)
-      });
-      results.push({
-        type: 'article',
-        id: `today_${query}`,
-        title: `Расписание на сегодня для ${query}`,
-        description: 'Нажмите для просмотра',
-        input_message_content: { message_text: `Расписание для ${query} на сегодня.` },
-        reply_markup: new InlineKeyboard().text('Показать на сегодня', `show_today_${query}`)
-      });
-      results.push({
-        type: 'article',
-        id: `tomorrow_${query}`,
-        title: `Расписание на завтра для ${query}`,
-        description: 'Нажмите для просмотра',
-        input_message_content: { message_text: `Расписание для ${query} на завтра.` },
-        reply_markup: new InlineKeyboard().text('Показать на завтра', `show_tomorrow_${query}`)
-      });
+      for (const [suffix, label, btn] of [
+        ['week', 'на неделю', 'Показать на неделю'],
+        ['today', 'на сегодня', 'Показать на сегодня'],
+        ['tomorrow', 'на завтра', 'Показать на завтра'],
+      ]) {
+        results.push({
+          type: 'article',
+          id: `${suffix}_${query}`,
+          title: `Расписание ${label} для ${query}`,
+          description: 'Нажмите для просмотра',
+          input_message_content: { message_text: `Расписание для ${query} ${label}.` },
+          reply_markup: new InlineKeyboard().text(btn, `show_${suffix}_${query}`)
+        });
+      }
     }
 
     await ctx.answerInlineQuery(results);
