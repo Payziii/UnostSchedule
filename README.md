@@ -38,6 +38,7 @@ npm install
 ```env
 BOT_TOKEN=ваш_токен_от_botfather
 ADMIN_IDS=123456789,987654321
+INTERNAL_API_TOKEN=произвольный_токен
 ```
 
 Запуск:

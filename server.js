@@ -3,11 +3,24 @@ const fs = require('fs');
 const { InputFile } = require('grammy');
 const { getUsersByGroup } = require('./db');
 
+const requireBearerToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.startsWith('Bearer ')
+    ? authHeader.slice(7)
+    : null;
+
+  if (!token || token !== process.env.INTERNAL_API_TOKEN) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  next();
+};
+
 const createServer = (bot) => {
   const app = express();
   app.use(express.json());
 
-  app.post('/internal/notify', async (req, res) => {
+  app.post('/internal/notify', requireBearerToken, async (req, res) => {
     const { group, changedDays, filePath, url } = req.body;
     console.log(`📩 Обновление расписания для группы ${group}`);
 
