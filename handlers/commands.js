@@ -4,6 +4,7 @@ const { getTodayImage, getTomorrowImage, getWeekImage, getQueryImage, getRaspIma
 const { daysOfWeek, isAdmin, API_BASE_URL, GRADUATED_COURSE, GRADUATED_YEARS, isGraduated, graduatedLabel } = require('../config');
 const { courseKeyboard } = require('../keyboards');
 const { broadcastState } = require('../broadcast');
+const { sendTerms } = require('../terms');
 const { InlineKeyboard } = require('grammy');
 
 const graduatedNotice = (year) =>
@@ -135,17 +136,21 @@ const registerCommands = (bot) => {
     }
   });
 
+  bot.command('terms', async (ctx) => {
+    await sendTerms(ctx);
+  });
+
   // === Админские команды ===
 
   bot.command('stats', async (ctx) => {
     if (!isAdmin(ctx.from.id)) return ctx.reply('❌ Доступ запрещён.');
     try {
-      const { total, byCourse, byGroup } = await getStats();
+      const { total, termsAccepted, byCourse, byGroup } = await getStats();
       const graduatedTotal = byCourse
         .filter(r => isGraduated(r.course))
         .reduce((sum, r) => sum + r.count, 0);
 
-      let message = `*Статистика бота*\n\n👥 Всего: *${total}*\n🎓 Выпустившихся: *${graduatedTotal}*\n\n`;
+      let message = `*Статистика бота*\n\n👥 С выбранной группой: *${total}*\n📋 Приняли условия: *${termsAccepted}*\n🎓 Выпустившихся: *${graduatedTotal}*\n\n`;
       if (byCourse.length) {
         message += `*По курсам:*\n`;
         byCourse.forEach(r => {
@@ -178,7 +183,8 @@ const registerCommands = (bot) => {
       if (!user) return ctx.reply(`Пользователь *${args[1]}* не найден.`, { parse_mode: 'Markdown' });
       const groupLabel = isGraduated(user.course) ? graduatedLabel(user.group_name) : user.group_name;
       await ctx.reply(
-        `Пользователь *${args[1]}*\nКурс: *${user.course}*\nГруппа: *${groupLabel}*`,
+        `Пользователь *${args[1]}*\nКурс: *${user.course || '—'}*\nГруппа: *${groupLabel || '—'}*\n` +
+        `Условия: *${user.terms_accepted === 1 ? 'приняты' : 'не приняты'}*`,
         { parse_mode: 'Markdown' }
       );
     } catch (err) {

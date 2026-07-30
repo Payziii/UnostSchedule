@@ -5,9 +5,14 @@ const { registerCommands } = require('./handlers/commands');
 const { registerCallbacks } = require('./handlers/callbacks');
 const { registerMessages } = require('./handlers/messages');
 const { registerInline } = require('./handlers/inline');
+const { termsGate, registerTerms } = require('./terms');
 const { createServer } = require('./server');
 
 const bot = new Bot(process.env.BOT_TOKEN);
+
+// Согласие с условиями — до всех остальных хендлеров
+registerTerms(bot);
+bot.use(termsGate);
 
 // Регистрируем все хендлеры
 registerCommands(bot);
