@@ -68,7 +68,7 @@ const getStats = () => new Promise((resolve, reject) => {
     db.all('SELECT course, COUNT(*) as count FROM users GROUP BY course', (err, rows) => {
       if (err) return reject(err);
       result.byCourse = rows;
-      db.all('SELECT group_name, COUNT(*) as count FROM users GROUP BY group_name ORDER BY count DESC LIMIT 10', (err, rows) => {
+      db.all('SELECT course, group_name, COUNT(*) as count FROM users GROUP BY course, group_name ORDER BY count DESC LIMIT 10', (err, rows) => {
         if (err) return reject(err);
         result.byGroup = rows;
         resolve(result);
@@ -77,11 +77,26 @@ const getStats = () => new Promise((resolve, reject) => {
   });
 });
 
-const getUserGroup = (userId) => new Promise((resolve, reject) => {
-  db.get(`SELECT group_name FROM users WHERE user_id = ?`, [userId], (err, row) => {
-    if (err) return reject(err);
-    resolve(row ? row.group_name : null);
-  });
+const graduateCourse = (fromCourse, toCourse, toGroup) => new Promise((resolve, reject) => {
+  db.run(
+    `UPDATE users SET course = ?, group_name = ? WHERE course = ?`,
+    [toCourse, toGroup, fromCourse],
+    function (err) {
+      if (err) return reject(err);
+      resolve(this.changes);
+    }
+  );
 });
 
-module.exports = { db, getUser, saveUser, deleteUser, getUsersByGroup, getUsersByFilter, getStats, getUserGroup };
+const graduateGroup = (fromGroup, toCourse, toGroup) => new Promise((resolve, reject) => {
+  db.run(
+    `UPDATE users SET course = ?, group_name = ? WHERE group_name = ?`,
+    [toCourse, toGroup, fromGroup],
+    function (err) {
+      if (err) return reject(err);
+      resolve(this.changes);
+    }
+  );
+});
+
+module.exports = { db, getUser, saveUser, deleteUser, getUsersByGroup, getUsersByFilter, getStats, graduateCourse, graduateGroup };

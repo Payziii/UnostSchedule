@@ -1,9 +1,14 @@
-const { InputFile } = require('grammy');
-const { saveUser } = require('../db');
+const { InputFile, InlineKeyboard } = require('grammy');
+const { saveUser, graduateCourse, graduateGroup } = require('../db');
 const { getWeekImage, getTodayImage, getTomorrowImage, getTodayDayName } = require('../api');
-const { isAdmin, GROUPS_CONFIG, daysOfWeek } = require('../config');
-const { groupKeyboard } = require('../keyboards');
+const { isAdmin, GROUPS_CONFIG, daysOfWeek, GRADUATED_COURSE, graduatedLabel } = require('../config');
+const { groupKeyboard, gradCourseKeyboard, gradGroupKeyboard } = require('../keyboards');
 const { broadcastState } = require('../broadcast');
+const { graduateState } = require('./commands');
+
+const gradConfirmKeyboard = () => new InlineKeyboard()
+  .text('Подтвердить', 'grad_confirm').row()
+  .text('Отмена', 'grad_cancel');
 
 const registerCallbacks = (bot) => {
 
@@ -14,7 +19,7 @@ const registerCallbacks = (bot) => {
     // --- Выбор курса ---
     if (data.startsWith('course_')) {
       const course = data.replace('course_', '');
-      if (!GROUPS_CONFIG[course]) return ctx.answerCallbackQuery('❌ Курс не найден.');
+      if (!GROUPS_CONFIG[course] || course === GRADUATED_COURSE) return ctx.answerCallbackQuery('❌ Курс не найден.');
       await ctx.editMessageText(`📖 Теперь выберите группу:`, {
         parse_mode: 'Markdown',
         reply_markup: groupKeyboard(course),
@@ -25,6 +30,7 @@ const registerCallbacks = (bot) => {
     // --- Выбор группы ---
     if (data.startsWith('group_')) {
       const [, course, group] = data.split('_');
+      if (course === GRADUATED_COURSE) return ctx.answerCallbackQuery('❌ Группа не найдена.');
       await saveUser(userId, course, group);
       await ctx.editMessageText(
         `Отлично! Ваша группа: *${group}*\n\n` +
@@ -111,6 +117,91 @@ const registerCallbacks = (bot) => {
       return ctx.answerCallbackQuery({ text: 'Сессия не найдена. Введите /broadcast', show_alert: true });
     }
 
+    // --- Перевод в выпустившиеся ---
+    if (data === 'grad_cancel') {
+      graduateState.delete(userId);
+      await ctx.editMessageText('Перевод отменён.');
+      return ctx.answerCallbackQuery();
+    }
+
+    if (data.startsWith('grad_')) {
+      const grad = graduateState.get(userId);
+      if (!grad) {
+        return ctx.answerCallbackQuery({ text: 'Сессия не найдена. Введите /graduate', show_alert: true });
+      }
+
+      if (data === 'grad_mode_course' || data === 'grad_mode_group') {
+        grad.mode = data === 'grad_mode_course' ? 'course' : 'group';
+        graduateState.set(userId, grad);
+        await ctx.editMessageText(
+          grad.mode === 'course'
+            ? '🎓 Выберите курс — будут переведены *все* его группы:'
+            : '🎓 Выберите курс выпускающейся группы:',
+          { parse_mode: 'Markdown', reply_markup: gradCourseKeyboard() }
+        );
+        return ctx.answerCallbackQuery();
+      }
+
+      if (data.startsWith('grad_course_')) {
+        const course = data.replace('grad_course_', '');
+        if (!GROUPS_CONFIG[course] || course === GRADUATED_COURSE) {
+          return ctx.answerCallbackQuery({ text: 'Курс не найден.', show_alert: true });
+        }
+        grad.course = course;
+        graduateState.set(userId, grad);
+
+        if (grad.mode === 'group') {
+          await ctx.editMessageText(`🎓 Выберите группу *${course}* курса:`, {
+            parse_mode: 'Markdown',
+            reply_markup: gradGroupKeyboard(course),
+          });
+          return ctx.answerCallbackQuery();
+        }
+
+        await ctx.editMessageText(
+          `🎓 Перевести *весь ${course} курс* (${GROUPS_CONFIG[course].length} групп) в *${graduatedLabel(grad.year)}*?\n\nЭто действие необратимо.`,
+          { parse_mode: 'Markdown', reply_markup: gradConfirmKeyboard() }
+        );
+        return ctx.answerCallbackQuery();
+      }
+
+      if (data.startsWith('grad_group_')) {
+        const [course, index] = data.replace('grad_group_', '').split('_');
+        const group = GROUPS_CONFIG[course]?.[Number(index)];
+        if (!group) return ctx.answerCallbackQuery({ text: 'Группа не найдена.', show_alert: true });
+
+        grad.group = group;
+        graduateState.set(userId, grad);
+        await ctx.editMessageText(
+          `🎓 Перевести группу *${group}* (${course} курс) в *${graduatedLabel(grad.year)}*?\n\nЭто действие необратимо.`,
+          { parse_mode: 'Markdown', reply_markup: gradConfirmKeyboard() }
+        );
+        return ctx.answerCallbackQuery();
+      }
+
+      if (data === 'grad_confirm') {
+        if (!grad.mode || !grad.course || (grad.mode === 'group' && !grad.group)) {
+          return ctx.answerCallbackQuery({ text: 'Выбор не завершён. Введите /graduate', show_alert: true });
+        }
+        graduateState.delete(userId);
+
+        try {
+          const moved = grad.mode === 'group'
+            ? await graduateGroup(grad.group, GRADUATED_COURSE, grad.year)
+            : await graduateCourse(grad.course, GRADUATED_COURSE, grad.year);
+          const target = grad.mode === 'group' ? `группа *${grad.group}*` : `весь *${grad.course} курс*`;
+          await ctx.editMessageText(
+            `🎓 Переведено пользователей: *${moved}*\nКого: ${target}\nНовый статус: *${graduatedLabel(grad.year)}*`,
+            { parse_mode: 'Markdown' }
+          );
+        } catch (err) {
+          console.error('Ошибка /graduate:', err);
+          await ctx.editMessageText('❌ Ошибка при переводе пользователей.');
+        }
+        return ctx.answerCallbackQuery();
+      }
+    }
+
     if (data === 'bc_cancel') {
       broadcastState.delete(userId);
       await ctx.editMessageText('Рассылка отменена.');
@@ -135,6 +226,13 @@ const registerCallbacks = (bot) => {
       Object.assign(state, { mode: 'group', stage: 'await_group' });
       broadcastState.set(userId, state);
       await ctx.editMessageText('Аудитория: *по группе*.\n\nНапишите название группы.', { parse_mode: 'Markdown' });
+      return ctx.answerCallbackQuery();
+    }
+
+    if (data === 'bc_graduated') {
+      Object.assign(state, { mode: 'graduated', filter: { course: GRADUATED_COURSE }, stage: 'await_text' });
+      broadcastState.set(userId, state);
+      await ctx.editMessageText('Аудитория: *выпустившиеся*.\n\nОтправьте текст рассылки.', { parse_mode: 'Markdown' });
       return ctx.answerCallbackQuery();
     }
   });

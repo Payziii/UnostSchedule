@@ -13,4 +13,22 @@ const daysOfWeek = ["ВОСКРЕСЕНЬЕ", "ПОНЕДЕЛЬНИК", "ВТО�
 
 const isAdmin = (userId) => ADMIN_IDS.includes(userId);
 
-module.exports = { GROUPS_CONFIG, ADMIN_IDS, API_BASE_URL, daysOfWeek, isAdmin };
+const GRADUATED_COURSE = 'graduated';
+
+const GRADUATED_YEARS = GROUPS_CONFIG[GRADUATED_COURSE] || [];
+
+const isGraduated = (course) => course === GRADUATED_COURSE;
+
+const graduatedLabel = (year) => `Выпустившийся - ${year}`;
+
+module.exports = {
+  GROUPS_CONFIG,
+  ADMIN_IDS,
+  API_BASE_URL,
+  daysOfWeek,
+  isAdmin,
+  GRADUATED_COURSE,
+  GRADUATED_YEARS,
+  isGraduated,
+  graduatedLabel,
+};

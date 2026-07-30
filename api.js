@@ -1,10 +1,12 @@
-const { API_BASE_URL, daysOfWeek } = require('./config');
+const { API_BASE_URL, daysOfWeek, GRADUATED_COURSE } = require('./config');
 const groups = require('./groups.json');
 
-const allGroups = [].concat(...Object.values(groups));
+const scheduleCourses = Object.keys(groups).filter(course => course !== GRADUATED_COURSE);
+
+const allGroups = [].concat(...scheduleCourses.map(course => groups[course]));
 
 const findCourseByGroup = (group) => {
-  for (const course in groups) {
+  for (const course of scheduleCourses) {
     if (groups[course].includes(group)) return course;
   }
   return null;

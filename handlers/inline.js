@@ -1,6 +1,7 @@
 const { InlineKeyboard } = require('grammy');
 const { allGroups } = require('../api');
-const { getUserGroup } = require('../db');
+const { getUser } = require('../db');
+const { isGraduated } = require('../config');
 
 const registerInline = (bot) => {
 
@@ -9,8 +10,8 @@ const registerInline = (bot) => {
     let results = [];
 
     if (!query) {
-      const userId = ctx.inlineQuery.from.id;
-      const userGroup = await getUserGroup(userId);
+      const user = await getUser(ctx.inlineQuery.from.id);
+      const userGroup = user && !isGraduated(user.course) ? user.group_name : null;
       if (!userGroup) {
         results.push({
           type: 'article',
