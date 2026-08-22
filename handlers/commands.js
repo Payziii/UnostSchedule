@@ -231,38 +231,16 @@ const registerCommands = (bot) => {
   bot.command('promote', async (ctx) => {
     if (!isAdmin(ctx.from.id)) return ctx.reply('❌ Доступ запрещён.');
 
-    const args = (typeof ctx.match === 'string' ? ctx.match.trim() : '').split(' ');
-    if (args.length < 3 || !args[0] || !args[1] || !args[2]) {
-      return ctx.reply(
-        '❌ Использование: `/promote <старая_группа> <новый_курс> <новая_группа>`\n\n' +
-        'Пример: `/promote ИСП-3304 4 ИСП-4304`',
-        { parse_mode: 'Markdown' }
-      );
-    }
-
-    const [fromGroup, toCourse, toGroup] = args;
-
-    if (!GROUPS_CONFIG[toCourse]) {
-      return ctx.reply(
-        `❌ Курс *${toCourse}* не найден в groups.json.\nДоступные курсы: ${Object.keys(GROUPS_CONFIG).filter(c => c !== GRADUATED_COURSE).join(', ')}`,
-        { parse_mode: 'Markdown' }
-      );
-    }
-
-    if (!GROUPS_CONFIG[toCourse].includes(toGroup)) {
-      return ctx.reply(
-        `❌ Группа *${toGroup}* не найдена на курсе *${toCourse}*.\n\nДоступные группы:\n${GROUPS_CONFIG[toCourse].join(', ')}`,
-        { parse_mode: 'Markdown' }
-      );
-    }
-
-    promoteState.set(ctx.from.id, { fromGroup, toCourse, toGroup });
+    promoteState.set(ctx.from.id, {});
     const keyboard = new InlineKeyboard()
-      .text('Подтвердить', 'promo_confirm').row()
+      .text('1 курс', 'promo_from_1').row()
+      .text('2 курс', 'promo_from_2').row()
+      .text('3 курс', 'promo_from_3').row()
+      .text('4 курс', 'promo_from_4').row()
       .text('Отмена', 'promo_cancel');
 
     await ctx.reply(
-      `📚 Перевести всех студентов из группы *${fromGroup}* в *${toGroup}* (${toCourse} курс)?\n\nЭто действие необратимо.`,
+      '📚 Перевод группы на следующий курс\n\nВыберите *текущий* курс группы:',
       { parse_mode: 'Markdown', reply_markup: keyboard }
     );
   });

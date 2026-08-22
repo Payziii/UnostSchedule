@@ -243,6 +243,102 @@ const registerCallbacks = (bot) => {
       return ctx.answerCallbackQuery();
     }
 
+    if (data.startsWith('promo_from_')) {
+      const fromCourse = data.replace('promo_from_', '');
+      if (!GROUPS_CONFIG[fromCourse] || fromCourse === GRADUATED_COURSE) {
+        return ctx.answerCallbackQuery({ text: 'Курс не найден.', show_alert: true });
+      }
+
+      const promo = promoteState.get(userId) || {};
+      promo.fromCourse = fromCourse;
+      promoteState.set(userId, promo);
+
+      const keyboard = new InlineKeyboard();
+      GROUPS_CONFIG[fromCourse].forEach((group, index) => {
+        keyboard.text(group, `promo_group_${fromCourse}_${index}`).row();
+      });
+      keyboard.text('Отмена', 'promo_cancel');
+
+      await ctx.editMessageText(
+        `📚 Выберите группу с *${fromCourse}* курса для перевода:`,
+        { parse_mode: 'Markdown', reply_markup: keyboard }
+      );
+      return ctx.answerCallbackQuery();
+    }
+
+    if (data.startsWith('promo_group_')) {
+      const [fromCourse, index] = data.replace('promo_group_', '').split('_');
+      const fromGroup = GROUPS_CONFIG[fromCourse]?.[Number(index)];
+      if (!fromGroup) {
+        return ctx.answerCallbackQuery({ text: 'Группа не найдена.', show_alert: true });
+      }
+
+      const promo = promoteState.get(userId) || {};
+      promo.fromGroup = fromGroup;
+      promoteState.set(userId, promo);
+
+      const keyboard = new InlineKeyboard()
+        .text('1 курс', 'promo_to_1').row()
+        .text('2 курс', 'promo_to_2').row()
+        .text('3 курс', 'promo_to_3').row()
+        .text('4 курс', 'promo_to_4').row()
+        .text('Отмена', 'promo_cancel');
+
+      await ctx.editMessageText(
+        `📚 Группа *${fromGroup}* (${fromCourse} курс)\n\nВыберите *новый* курс:`,
+        { parse_mode: 'Markdown', reply_markup: keyboard }
+      );
+      return ctx.answerCallbackQuery();
+    }
+
+    if (data.startsWith('promo_to_')) {
+      const toCourse = data.replace('promo_to_', '');
+      if (!GROUPS_CONFIG[toCourse] || toCourse === GRADUATED_COURSE) {
+        return ctx.answerCallbackQuery({ text: 'Курс не найден.', show_alert: true });
+      }
+
+      const promo = promoteState.get(userId) || {};
+      promo.toCourse = toCourse;
+      promoteState.set(userId, promo);
+
+      const keyboard = new InlineKeyboard();
+      GROUPS_CONFIG[toCourse].forEach((group, index) => {
+        keyboard.text(group, `promo_target_${toCourse}_${index}`).row();
+      });
+      keyboard.text('Отмена', 'promo_cancel');
+
+      await ctx.editMessageText(
+        `📚 Выберите новую группу на *${toCourse}* курсе:`,
+        { parse_mode: 'Markdown', reply_markup: keyboard }
+      );
+      return ctx.answerCallbackQuery();
+    }
+
+    if (data.startsWith('promo_target_')) {
+      const [toCourse, index] = data.replace('promo_target_', '').split('_');
+      const toGroup = GROUPS_CONFIG[toCourse]?.[Number(index)];
+      if (!toGroup) {
+        return ctx.answerCallbackQuery({ text: 'Группа не найдена.', show_alert: true });
+      }
+
+      const promo = promoteState.get(userId) || {};
+      promo.toGroup = toGroup;
+      promoteState.set(userId, promo);
+
+      const keyboard = new InlineKeyboard()
+        .text('Подтвердить', 'promo_confirm').row()
+        .text('Отмена', 'promo_cancel');
+
+      await ctx.editMessageText(
+        `📚 Перевести всех студентов:\n` +
+        `Из: *${promo.fromGroup}* (${promo.fromCourse} курс)\n` +
+        `В: *${toGroup}* (${toCourse} курс)\n\n` +
+        `Это действие необратимо.`,
+        { parse_mode: 'Markdown', reply_markup: keyboard }
+      );
+      return ctx.answerCallbackQuery();
+    }
+
     if (data === 'promo_confirm') {
       const promo = promoteState.get(userId);
       if (!promo || !promo.fromGroup || !promo.toCourse || !promo.toGroup) {
