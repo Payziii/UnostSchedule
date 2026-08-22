@@ -130,6 +130,17 @@ const graduateGroup = (fromGroup, toCourse, toGroup) => new Promise((resolve, re
   );
 });
 
+const promoteGroup = (fromGroup, toCourse, toGroup) => new Promise((resolve, reject) => {
+  db.run(
+    `UPDATE users SET course = ?, group_name = ? WHERE group_name = ?`,
+    [toCourse, toGroup, fromGroup],
+    function (err) {
+      if (err) return reject(err);
+      resolve(this.changes);
+    }
+  );
+});
+
 module.exports = {
   db,
   getUser,
@@ -140,6 +151,7 @@ module.exports = {
   getStats,
   graduateCourse,
   graduateGroup,
+  promoteGroup,
   hasAcceptedTerms,
   setTermsAccepted,
 };

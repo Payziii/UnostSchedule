@@ -1,10 +1,10 @@
 const { InputFile, InlineKeyboard } = require('grammy');
-const { saveUser, graduateCourse, graduateGroup } = require('../db');
+const { saveUser, graduateCourse, graduateGroup, promoteGroup } = require('../db');
 const { getWeekImage, getTodayImage, getTomorrowImage, getTodayDayName } = require('../api');
 const { isAdmin, GROUPS_CONFIG, daysOfWeek, GRADUATED_COURSE, graduatedLabel } = require('../config');
 const { groupKeyboard, gradCourseKeyboard, gradGroupKeyboard } = require('../keyboards');
 const { broadcastState } = require('../broadcast');
-const { graduateState } = require('./commands');
+const { graduateState, promoteState } = require('./commands');
 
 const gradConfirmKeyboard = () => new InlineKeyboard()
   .text('Подтвердить', 'grad_confirm').row()
@@ -233,6 +233,33 @@ const registerCallbacks = (bot) => {
       Object.assign(state, { mode: 'graduated', filter: { course: GRADUATED_COURSE }, stage: 'await_text' });
       broadcastState.set(userId, state);
       await ctx.editMessageText('Аудитория: *выпустившиеся*.\n\nОтправьте текст рассылки.', { parse_mode: 'Markdown' });
+      return ctx.answerCallbackQuery();
+    }
+
+    // --- Перевод группы на следующий курс ---
+    if (data === 'promo_cancel') {
+      promoteState.delete(userId);
+      await ctx.editMessageText('Перевод отменён.');
+      return ctx.answerCallbackQuery();
+    }
+
+    if (data === 'promo_confirm') {
+      const promo = promoteState.get(userId);
+      if (!promo || !promo.fromGroup || !promo.toCourse || !promo.toGroup) {
+        return ctx.answerCallbackQuery({ text: 'Сессия не найдена. Введите /promote', show_alert: true });
+      }
+      promoteState.delete(userId);
+
+      try {
+        const moved = await promoteGroup(promo.fromGroup, promo.toCourse, promo.toGroup);
+        await ctx.editMessageText(
+          `📚 Переведено пользователей: *${moved}*\nИз группы: *${promo.fromGroup}*\nВ группу: *${promo.toGroup}* (${promo.toCourse} курс)`,
+          { parse_mode: 'Markdown' }
+        );
+      } catch (err) {
+        console.error('Ошибка /promote:', err);
+        await ctx.editMessageText('❌ Ошибка при переводе пользователей.');
+      }
       return ctx.answerCallbackQuery();
     }
   });
