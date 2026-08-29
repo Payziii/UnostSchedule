@@ -23,17 +23,16 @@ const runBroadcast = async (bot, adminId, messageId, filter, notificationType, w
 
   for (const row of users) {
     try {
-      await bot.api.copyMessage(row.user_id, adminId, messageId);
-
-      // Если включена опция withKeyboard, отправляем дополнительное сообщение с клавиатурой
       if (withKeyboard) {
-        await sleep(100);
         await bot.api.sendMessage(
           row.user_id,
-          '⌨️ Воспользуйтесь кнопками ниже ⬇️',
+          '⠀',
           { reply_markup: mainKeyboard() }
         );
+        await sleep(100);
       }
+
+      await bot.api.copyMessage(row.user_id, adminId, messageId);
 
       success++;
     } catch (e) {
