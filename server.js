@@ -33,6 +33,25 @@ const createServer = (bot) => {
         return res.json({ status: 'no_users' });
       }
 
+      // Фильтруем пользователей с включёнными уведомлениями об изменениях
+      const { db } = require('./db');
+      const filteredUsers = await new Promise((resolve, reject) => {
+        const userIds = users.map(u => u.user_id).join(',');
+        db.all(
+          `SELECT user_id FROM users WHERE user_id IN (${userIds}) AND schedule_change_notifications = 1`,
+          (err, rows) => {
+            if (err) return reject(err);
+            resolve(rows || []);
+          }
+        );
+      });
+
+      if (filteredUsers.length === 0) {
+        console.log(`Нет пользователей с включёнными уведомлениями для группы ${group}`);
+        if (fs.existsSync(filePath)) fs.unlink(filePath, () => {});
+        return res.json({ status: 'no_users_with_notifications' });
+      }
+
       const caption =
         `📢 <b>Расписание обновлено!</b>\n` +
         `Группа: <b>${group}</b>\n` +
@@ -42,7 +61,7 @@ const createServer = (bot) => {
       const photo = new InputFile(filePath);
       let successCount = 0;
 
-      for (const user of users) {
+      for (const user of filteredUsers) {
         try {
           await bot.api.sendPhoto(user.user_id, photo, { caption, parse_mode: 'HTML' });
           successCount++;
@@ -52,13 +71,13 @@ const createServer = (bot) => {
         }
       }
 
-      console.log(`✅ Отправлено: ${successCount}/${users.length}`);
+      console.log(`✅ Отправлено: ${successCount}/${filteredUsers.length}`);
 
       setTimeout(() => {
         if (fs.existsSync(filePath)) fs.unlink(filePath, () => {});
       }, 10000);
 
-      res.json({ status: 'ok', sent: successCount });
+      res.json({ status: 'ok', sent: successCount, total: filteredUsers.length });
     } catch (e) {
       console.error('Ошибка в notify:', e);
       res.status(500).json({ error: e.message });

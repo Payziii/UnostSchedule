@@ -13,9 +13,11 @@ const gradConfirmKeyboard = () => new InlineKeyboard()
 const settingsKeyboard = (user) => {
   const promoIcon = user.promo_notifications === 1 ? '✅' : '❌';
   const systemIcon = user.system_notifications === 1 ? '✅' : '❌';
+  const scheduleIcon = user.schedule_change_notifications === 1 ? '✅' : '❌';
   return new InlineKeyboard()
     .text(`${promoIcon} Рекламные увед.`, 'settings_promo').row()
     .text(`${systemIcon} Системные увед.`, 'settings_system').row()
+    .text(`${scheduleIcon} Увед. об изменениях`, 'settings_schedule').row()
     .text('◀️ Назад', 'settings_back');
 };
 
@@ -31,7 +33,12 @@ const registerCallbacks = (bot) => {
       if (!user) return ctx.answerCallbackQuery({ text: 'Профиль не найден', show_alert: true });
 
       await ctx.editMessageText(
-        `⚙️ *Настройки уведомлений*\n\nВключите или отключите типы уведомлений:`,
+        `⚙️ *Настройки уведомлений*\n\n` +
+        `Управляйте типами уведомлений, которые вы получаете:\n\n` +
+        `• *Рекламные* — реклама и рекомендации\n` +
+        `• *Системные* — новости о функциях бота\n` +
+        `• *Об изменениях* — обновления расписания (основная функция бота)\n\n` +
+        `✅ — включено | ❌ — отключено`,
         { parse_mode: 'Markdown', reply_markup: settingsKeyboard(user) }
       );
       return ctx.answerCallbackQuery();
@@ -47,16 +54,18 @@ const registerCallbacks = (bot) => {
     }
 
     // --- Настройки: переключение уведомлений ---
-    if (data === 'settings_promo' || data === 'settings_system') {
-      const type = data === 'settings_promo' ? 'promo' : 'system';
+    if (data === 'settings_promo' || data === 'settings_system' || data === 'settings_schedule') {
+      const typeMap = { 'settings_promo': 'promo', 'settings_system': 'system', 'settings_schedule': 'schedule' };
+      const type = typeMap[data];
       const newValue = await toggleNotification(userId, type);
       const user = await getUser(userId);
 
       const statusText = newValue === 1 ? 'включены' : 'отключены';
-      const typeText = type === 'promo' ? 'Рекламные' : 'Системные';
+      const typeTextMap = { 'promo': 'Рекламные', 'system': 'Системные', 'schedule': 'Уведомления об изменениях' };
+      const typeText = typeTextMap[type];
 
       await ctx.editMessageReplyMarkup({ reply_markup: settingsKeyboard(user) });
-      return ctx.answerCallbackQuery(`${typeText} уведомления ${statusText}`);
+      return ctx.answerCallbackQuery(`${typeText} ${statusText}`);
     }
 
     // --- Настройки: назад ---

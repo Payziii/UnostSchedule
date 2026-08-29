@@ -10,7 +10,8 @@ db.serialize(() => {
       group_name TEXT,
       terms_accepted INTEGER NOT NULL DEFAULT 0,
       promo_notifications INTEGER NOT NULL DEFAULT 1,
-      system_notifications INTEGER NOT NULL DEFAULT 1
+      system_notifications INTEGER NOT NULL DEFAULT 1,
+      schedule_change_notifications INTEGER NOT NULL DEFAULT 1
     )
   `);
   // Миграция для баз, созданных до появления условий использования
@@ -28,6 +29,11 @@ db.serialize(() => {
   db.run(`ALTER TABLE users ADD COLUMN system_notifications INTEGER NOT NULL DEFAULT 1`, (err) => {
     if (err && !/duplicate column name/i.test(err.message)) {
       console.error('Ошибка миграции system_notifications:', err.message);
+    }
+  });
+  db.run(`ALTER TABLE users ADD COLUMN schedule_change_notifications INTEGER NOT NULL DEFAULT 1`, (err) => {
+    if (err && !/duplicate column name/i.test(err.message)) {
+      console.error('Ошибка миграции schedule_change_notifications:', err.message);
     }
   });
 });
@@ -190,7 +196,13 @@ const promoteGroup = (fromGroup, toCourse, toGroup) => new Promise((resolve, rej
 });
 
 const toggleNotification = (userId, type) => new Promise((resolve, reject) => {
-  const column = type === 'promo' ? 'promo_notifications' : 'system_notifications';
+  const columnMap = {
+    'promo': 'promo_notifications',
+    'system': 'system_notifications',
+    'schedule': 'schedule_change_notifications'
+  };
+  const column = columnMap[type];
+
   db.get(`SELECT ${column} FROM users WHERE user_id = ?`, [userId], (err, row) => {
     if (err) return reject(err);
     const currentValue = row ? row[column] : 1;
