@@ -331,12 +331,18 @@ const registerCallbacks = (bot) => {
       const notifType = state.notificationType === 'mandatory' ? null : state.notificationType;
       const count = await countUsersByFilter({}, notifType);
 
-      Object.assign(state, { mode: 'all', filter: {}, stage: 'await_text' });
+      Object.assign(state, { mode: 'all', filter: {}, stage: 'confirm_keyboard' });
       broadcastState.set(userId, state);
 
+      const keyboard = new InlineKeyboard()
+        .text('✅ С клавиатурой', 'bc_keyboard_yes').row()
+        .text('❌ Без клавиатуры', 'bc_keyboard_no').row()
+        .text('◀️ Назад', 'bc_back_target');
+
       await ctx.editMessageText(
-        `Аудитория: *все пользователи*\nРассылку получат *${count}* пользователей\n\nОтправьте текст рассылки.`,
-        { parse_mode: 'Markdown' }
+        `Аудитория: *все пользователи*\nРассылку получат *${count}* пользователей\n\n` +
+        `Добавить клавиатуру к рассылке?\n_(Отправит дополнительное сообщение с кнопками быстрого доступа)_`,
+        { parse_mode: 'Markdown', reply_markup: keyboard }
       );
       return ctx.answerCallbackQuery();
     }
@@ -369,11 +375,30 @@ const registerCallbacks = (bot) => {
       const notifType = state.notificationType === 'mandatory' ? null : state.notificationType;
       const count = await countUsersByFilter({ course: GRADUATED_COURSE }, notifType);
 
-      Object.assign(state, { mode: 'graduated', filter: { course: GRADUATED_COURSE }, stage: 'await_text' });
+      Object.assign(state, { mode: 'graduated', filter: { course: GRADUATED_COURSE }, stage: 'confirm_keyboard' });
+      broadcastState.set(userId, state);
+
+      const keyboard = new InlineKeyboard()
+        .text('✅ С клавиатурой', 'bc_keyboard_yes').row()
+        .text('❌ Без клавиатуры', 'bc_keyboard_no').row()
+        .text('◀️ Назад', 'bc_back_target');
+
+      await ctx.editMessageText(
+        `Аудитория: *выпустившиеся*\nРассылку получат *${count}* пользователей\n\n` +
+        `Добавить клавиатуру к рассылке?\n_(Отправит дополнительное сообщение с кнопками быстрого доступа)_`,
+        { parse_mode: 'Markdown', reply_markup: keyboard }
+      );
+      return ctx.answerCallbackQuery();
+    }
+
+    // --- Broadcast: выбор с клавиатурой или без ---
+    if (data === 'bc_keyboard_yes' || data === 'bc_keyboard_no') {
+      state.withKeyboard = data === 'bc_keyboard_yes';
+      state.stage = 'await_text';
       broadcastState.set(userId, state);
 
       await ctx.editMessageText(
-        `Аудитория: *выпустившиеся*\nРассылку получат *${count}* пользователей\n\nОтправьте текст рассылки.`,
+        `${state.withKeyboard ? '✅ С клавиатурой' : '❌ Без клавиатуры'}\n\nОтправьте текст рассылки.`,
         { parse_mode: 'Markdown' }
       );
       return ctx.answerCallbackQuery();

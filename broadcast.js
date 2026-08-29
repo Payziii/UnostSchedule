@@ -1,10 +1,11 @@
 const { getUsersByFilter } = require('./db');
+const { mainKeyboard } = require('./keyboards');
 
 const broadcastState = new Map();
 
 const sleep = (ms) => new Promise(res => setTimeout(res, ms));
 
-const runBroadcast = async (bot, adminId, messageId, filter, notificationType) => {
+const runBroadcast = async (bot, adminId, messageId, filter, notificationType, withKeyboard = false) => {
   const users = await getUsersByFilter(filter, notificationType);
 
   if (users.length === 0) {
@@ -23,6 +24,17 @@ const runBroadcast = async (bot, adminId, messageId, filter, notificationType) =
   for (const row of users) {
     try {
       await bot.api.copyMessage(row.user_id, adminId, messageId);
+
+      // Если включена опция withKeyboard, отправляем дополнительное сообщение с клавиатурой
+      if (withKeyboard) {
+        await sleep(100);
+        await bot.api.sendMessage(
+          row.user_id,
+          '⌨️ Воспользуйтесь кнопками ниже ⬇️',
+          { reply_markup: mainKeyboard() }
+        );
+      }
+
       success++;
     } catch (e) {
       if (e.description && (e.description.includes('blocked') || e.description.includes('kicked'))) {

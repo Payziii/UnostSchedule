@@ -135,35 +135,47 @@ const registerMessages = (bot) => {
 
     if (state.stage === 'await_course') {
       state.filter = { course: text.trim() };
-      state.stage = 'await_text';
+      state.stage = 'confirm_keyboard';
       broadcastState.set(userId, state);
 
       const notifType = state.notificationType === 'mandatory' ? null : state.notificationType;
       const count = await countUsersByFilter(state.filter, notifType);
 
+      const keyboard = new InlineKeyboard()
+        .text('✅ С клавиатурой', 'bc_keyboard_yes').row()
+        .text('❌ Без клавиатуры', 'bc_keyboard_no').row()
+        .text('◀️ Назад', 'bc_back_target');
+
       return ctx.reply(
-        `Курс: *${state.filter.course}*\nРассылку получат *${count}* пользователей\n\nОтправьте текст рассылки.`,
-        { parse_mode: 'Markdown' }
+        `Курс: *${state.filter.course}*\nРассылку получат *${count}* пользователей\n\n` +
+        `Добавить клавиатуру к рассылке?\n_(Отправит дополнительное сообщение с кнопками быстрого доступа)_`,
+        { parse_mode: 'Markdown', reply_markup: keyboard }
       );
     }
 
     if (state.stage === 'await_group') {
       state.filter = { group_name: text.trim() };
-      state.stage = 'await_text';
+      state.stage = 'confirm_keyboard';
       broadcastState.set(userId, state);
 
       const notifType = state.notificationType === 'mandatory' ? null : state.notificationType;
       const count = await countUsersByFilter(state.filter, notifType);
 
+      const keyboard = new InlineKeyboard()
+        .text('✅ С клавиатурой', 'bc_keyboard_yes').row()
+        .text('❌ Без клавиатуры', 'bc_keyboard_no').row()
+        .text('◀️ Назад', 'bc_back_target');
+
       return ctx.reply(
-        `Группа: *${state.filter.group_name}*\nРассылку получат *${count}* пользователей\n\nОтправьте текст рассылки.`,
-        { parse_mode: 'Markdown' }
+        `Группа: *${state.filter.group_name}*\nРассылку получат *${count}* пользователей\n\n` +
+        `Добавить клавиатуру к рассылке?\n_(Отправит дополнительное сообщение с кнопками быстрого доступа)_`,
+        { parse_mode: 'Markdown', reply_markup: keyboard }
       );
     }
 
     if (state.stage === 'await_text') {
       const notifType = state.notificationType === 'mandatory' ? null : state.notificationType;
-      runBroadcast(bot, userId, ctx.message.message_id, state.filter, notifType);
+      runBroadcast(bot, userId, ctx.message.message_id, state.filter, notifType, state.withKeyboard || false);
       broadcastState.delete(userId);
     }
   });
