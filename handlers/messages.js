@@ -84,25 +84,35 @@ const registerMessages = (bot) => {
       const { getStats } = require('../db');
       const { total, byCourse } = await getStats();
 
+      // Фильтруем выпустившихся
+      const activeCourses = byCourse.filter(r => !isGraduated(r.course));
+      const graduatedCount = byCourse
+        .filter(r => isGraduated(r.course))
+        .reduce((sum, r) => sum + r.count, 0);
+      const activeTotal = total - graduatedCount;
+
       let statsText = '';
-      if (byCourse.length) {
+      if (activeCourses.length) {
         statsText = '\n\n*Статистика по курсам:*\n';
-        byCourse.forEach(r => {
-          const label = isGraduated(r.course) ? 'Выпустившиеся' : r.course;
-          statsText += `• ${label}: ${r.count}\n`;
+        activeCourses.forEach(r => {
+          statsText += `• ${r.course}: ${r.count}\n`;
         });
       }
 
       const message =
         `📊 *Информация о боте*\n` +
-        `\n👥 Всего пользователей: *${total}*` +
+        `\n👥 Всего пользователей: *${activeTotal}*` +
         statsText +
         `\n🔗 *Ссылки:*\n` +
         `• [Репозиторий GitHub](https://github.com/Payziii/UnostSchedule)\n` +
         `• [Сайт расписания](https://u.fifty.chat/)\n` +
-        `• [Политика использования](/terms)`;
+        `• [Политика использования](https://github.com/Payziii/UnostSchedule/blob/main/TERMS.md)`;
 
-      await ctx.reply(message, { parse_mode: 'Markdown', reply_markup: mainKeyboard() });
+      await ctx.reply(message, {
+        parse_mode: 'Markdown',
+        reply_markup: mainKeyboard(),
+        link_preview_options: { is_disabled: true }
+      });
     } catch (err) {
       console.error('Ошибка кнопки Инфо:', err);
       await ctx.reply('❌ Не удалось получить информацию. Попробуйте позже.', { reply_markup: mainKeyboard() });
