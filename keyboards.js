@@ -1,4 +1,4 @@
-const { InlineKeyboard } = require('grammy');
+const { InlineKeyboard, Keyboard } = require('grammy');
 const { GROUPS_CONFIG, GRADUATED_COURSE } = require('./config');
 
 const courseKeyboard = () => {
@@ -37,4 +37,12 @@ const gradGroupKeyboard = (course) => {
   return keyboard;
 };
 
-module.exports = { courseKeyboard, groupKeyboard, gradCourseKeyboard, gradGroupKeyboard };
+const mainKeyboard = () => {
+  return new Keyboard()
+    .text('🗓️ Сегодня').text('🗓️ Неделя').text('🗓️ Завтра').row()
+    .text('👤 Профиль').text('📊 Инфо')
+    .resized()
+    .persistent();
+};
+
+module.exports = { courseKeyboard, groupKeyboard, gradCourseKeyboard, gradGroupKeyboard, mainKeyboard };

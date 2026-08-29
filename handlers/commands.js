@@ -2,7 +2,7 @@ const { InputFile } = require('grammy');
 const { getUser, deleteUser, getStats } = require('../db');
 const { getTodayImage, getTomorrowImage, getWeekImage, getQueryImage, getRaspImage, getTodayDayName } = require('../api');
 const { daysOfWeek, isAdmin, API_BASE_URL, GRADUATED_COURSE, GRADUATED_YEARS, isGraduated, graduatedLabel } = require('../config');
-const { courseKeyboard } = require('../keyboards');
+const { courseKeyboard, mainKeyboard } = require('../keyboards');
 const { broadcastState } = require('../broadcast');
 const { sendTerms } = require('../terms');
 const { InlineKeyboard } = require('grammy');
@@ -21,14 +21,14 @@ const registerCommands = (bot) => {
 
     if (isRestart) {
       await deleteUser(userId);
-      await ctx.reply('Группа очищена');
+      await ctx.reply('Группа очищена', { reply_markup: { remove_keyboard: true } });
     } else {
       const user = await getUser(userId);
       if (user && user.course && user.group_name) {
         const label = isGraduated(user.course) ? graduatedLabel(user.group_name) : user.group_name;
         await ctx.reply(
           `Ваша группа: *${label}*\n\nЧтобы сменить — используйте /restart`,
-          { parse_mode: 'Markdown' }
+          { parse_mode: 'Markdown', reply_markup: mainKeyboard() }
         );
         return;
       }
@@ -42,7 +42,7 @@ const registerCommands = (bot) => {
     if (!user?.course) return ctx.reply('❌ Сначала выберите группу: /start');
     if (isGraduated(user.course)) return ctx.reply(graduatedNotice(user.group_name));
 
-    await ctx.reply('⌛ Генерирую расписание на сегодня...');
+    await ctx.reply('⌛ Генерирую расписание на сегодня...', { reply_markup: mainKeyboard() });
     try {
       const day = getTodayDayName();
       const buffer = await getTodayImage(user.group_name);

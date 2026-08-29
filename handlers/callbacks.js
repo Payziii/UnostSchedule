@@ -2,7 +2,7 @@ const { InputFile, InlineKeyboard } = require('grammy');
 const { saveUser, graduateCourse, graduateGroup, promoteGroup } = require('../db');
 const { getWeekImage, getTodayImage, getTomorrowImage, getTodayDayName } = require('../api');
 const { isAdmin, GROUPS_CONFIG, daysOfWeek, GRADUATED_COURSE, graduatedLabel } = require('../config');
-const { groupKeyboard, gradCourseKeyboard, gradGroupKeyboard } = require('../keyboards');
+const { groupKeyboard, gradCourseKeyboard, gradGroupKeyboard, mainKeyboard } = require('../keyboards');
 const { broadcastState } = require('../broadcast');
 const { graduateState, promoteState } = require('./commands');
 
@@ -37,6 +37,7 @@ const registerCallbacks = (bot) => {
         `Используйте:\n/today — сегодня\n/tomorrow — завтра\n/week — неделя`,
         { parse_mode: 'Markdown' }
       );
+      await ctx.reply('Используйте кнопки ниже для быстрого доступа:', { reply_markup: mainKeyboard() });
       return ctx.answerCallbackQuery('✅ Группа сохранена!');
     }
 
