@@ -4,8 +4,8 @@ const broadcastState = new Map();
 
 const sleep = (ms) => new Promise(res => setTimeout(res, ms));
 
-const runBroadcast = async (bot, adminId, messageId, filter) => {
-  const users = await getUsersByFilter(filter);
+const runBroadcast = async (bot, adminId, messageId, filter, notificationType) => {
+  const users = await getUsersByFilter(filter, notificationType);
 
   if (users.length === 0) {
     await bot.api.sendMessage(adminId, '⚠️ Не найдено пользователей для этой выборки.');

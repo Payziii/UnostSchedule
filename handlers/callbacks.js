@@ -1,5 +1,5 @@
 const { InputFile, InlineKeyboard } = require('grammy');
-const { saveUser, graduateCourse, graduateGroup, promoteGroup, getUser, toggleNotification, deleteUser } = require('../db');
+const { saveUser, graduateCourse, graduateGroup, promoteGroup, getUser, toggleNotification, deleteUser, countUsersByFilter } = require('../db');
 const { getWeekImage, getTodayImage, getTomorrowImage, getTodayDayName } = require('../api');
 const { isAdmin, GROUPS_CONFIG, daysOfWeek, GRADUATED_COURSE, graduatedLabel, isGraduated } = require('../config');
 const { groupKeyboard, gradCourseKeyboard, gradGroupKeyboard, mainKeyboard, courseKeyboard } = require('../keyboards');
@@ -173,6 +173,55 @@ const registerCallbacks = (bot) => {
       return ctx.answerCallbackQuery({ text: 'Недостаточно прав.', show_alert: true });
     }
 
+    // --- Broadcast: выбор типа ---
+    if (data.startsWith('bc_type_')) {
+      const state = broadcastState.get(userId);
+      if (!state) return ctx.answerCallbackQuery({ text: 'Сессия не найдена. Введите /broadcast', show_alert: true });
+
+      const typeMap = { 'bc_type_promo': 'promo', 'bc_type_system': 'system', 'bc_type_mandatory': 'mandatory' };
+      const typeLabels = { 'promo': '📢 Рекламная', 'system': '⚙️ Системная', 'mandatory': '🔔 Обязательная' };
+      const type = typeMap[data];
+
+      state.notificationType = type;
+      state.stage = 'choose_target';
+      broadcastState.set(userId, state);
+
+      const count = await countUsersByFilter({}, type === 'mandatory' ? null : type);
+      const keyboard = new InlineKeyboard()
+        .text('Всем', 'bc_all').row()
+        .text('По курсу', 'bc_course').row()
+        .text('По группе', 'bc_group').row()
+        .text('Выпустившимся', 'bc_graduated').row()
+        .text('◀️ Назад', 'bc_back_type').row()
+        .text('Отмена', 'bc_cancel');
+
+      await ctx.editMessageText(
+        `Тип рассылки: *${typeLabels[type]}*\n\nРассылку получат *${count}* пользователей\n\nВыберите аудиторию:`,
+        { parse_mode: 'Markdown', reply_markup: keyboard }
+      );
+      return ctx.answerCallbackQuery();
+    }
+
+    // --- Broadcast: вернуться к выбору типа ---
+    if (data === 'bc_back_type') {
+      const state = broadcastState.get(userId);
+      if (!state) return ctx.answerCallbackQuery({ text: 'Сессия не найдена. Введите /broadcast', show_alert: true });
+
+      state.stage = 'choose_type';
+      state.notificationType = null;
+      state.filter = {};
+      broadcastState.set(userId, state);
+
+      const keyboard = new InlineKeyboard()
+        .text('📢 Рекламная', 'bc_type_promo').row()
+        .text('⚙️ Системная', 'bc_type_system').row()
+        .text('🔔 Обязательная', 'bc_type_mandatory').row()
+        .text('Отмена', 'bc_cancel');
+
+      await ctx.editMessageText('Выберите тип рассылки:', { reply_markup: keyboard });
+      return ctx.answerCallbackQuery();
+    }
+
     const state = broadcastState.get(userId);
     if (!state && data.startsWith('bc_')) {
       return ctx.answerCallbackQuery({ text: 'Сессия не найдена. Введите /broadcast', show_alert: true });
@@ -270,30 +319,79 @@ const registerCallbacks = (bot) => {
     }
 
     if (data === 'bc_all') {
+      const notifType = state.notificationType === 'mandatory' ? null : state.notificationType;
+      const count = await countUsersByFilter({}, notifType);
+
       Object.assign(state, { mode: 'all', filter: {}, stage: 'await_text' });
       broadcastState.set(userId, state);
-      await ctx.editMessageText('Аудитория: *все пользователи*.\n\nОтправьте текст рассылки.', { parse_mode: 'Markdown' });
+
+      await ctx.editMessageText(
+        `Аудитория: *все пользователи*\nРассылку получат *${count}* пользователей\n\nОтправьте текст рассылки.`,
+        { parse_mode: 'Markdown' }
+      );
       return ctx.answerCallbackQuery();
     }
 
     if (data === 'bc_course') {
       Object.assign(state, { mode: 'course', stage: 'await_course' });
       broadcastState.set(userId, state);
-      await ctx.editMessageText('Аудитория: *по курсу*.\n\nНапишите название курса.', { parse_mode: 'Markdown' });
+
+      const keyboard = new InlineKeyboard().text('◀️ Назад', 'bc_back_target');
+      await ctx.editMessageText('Аудитория: *по курсу*.\n\nНапишите название курса.', {
+        parse_mode: 'Markdown',
+        reply_markup: keyboard
+      });
       return ctx.answerCallbackQuery();
     }
 
     if (data === 'bc_group') {
       Object.assign(state, { mode: 'group', stage: 'await_group' });
       broadcastState.set(userId, state);
-      await ctx.editMessageText('Аудитория: *по группе*.\n\nНапишите название группы.', { parse_mode: 'Markdown' });
+
+      const keyboard = new InlineKeyboard().text('◀️ Назад', 'bc_back_target');
+      await ctx.editMessageText('Аудитория: *по группе*.\n\nНапишите название группы.', {
+        parse_mode: 'Markdown',
+        reply_markup: keyboard
+      });
       return ctx.answerCallbackQuery();
     }
 
     if (data === 'bc_graduated') {
+      const notifType = state.notificationType === 'mandatory' ? null : state.notificationType;
+      const count = await countUsersByFilter({ course: GRADUATED_COURSE }, notifType);
+
       Object.assign(state, { mode: 'graduated', filter: { course: GRADUATED_COURSE }, stage: 'await_text' });
       broadcastState.set(userId, state);
-      await ctx.editMessageText('Аудитория: *выпустившиеся*.\n\nОтправьте текст рассылки.', { parse_mode: 'Markdown' });
+
+      await ctx.editMessageText(
+        `Аудитория: *выпустившиеся*\nРассылку получат *${count}* пользователей\n\nОтправьте текст рассылки.`,
+        { parse_mode: 'Markdown' }
+      );
+      return ctx.answerCallbackQuery();
+    }
+
+    // --- Broadcast: вернуться к выбору аудитории ---
+    if (data === 'bc_back_target') {
+      state.stage = 'choose_target';
+      state.filter = {};
+      broadcastState.set(userId, state);
+
+      const notifType = state.notificationType === 'mandatory' ? null : state.notificationType;
+      const typeLabels = { 'promo': '📢 Рекламная', 'system': '⚙️ Системная', 'mandatory': '🔔 Обязательная' };
+      const count = await countUsersByFilter({}, notifType);
+
+      const keyboard = new InlineKeyboard()
+        .text('Всем', 'bc_all').row()
+        .text('По курсу', 'bc_course').row()
+        .text('По группе', 'bc_group').row()
+        .text('Выпустившимся', 'bc_graduated').row()
+        .text('◀️ Назад', 'bc_back_type').row()
+        .text('Отмена', 'bc_cancel');
+
+      await ctx.editMessageText(
+        `Тип рассылки: *${typeLabels[state.notificationType]}*\n\nРассылку получат *${count}* пользователей\n\nВыберите аудиторию:`,
+        { parse_mode: 'Markdown', reply_markup: keyboard }
+      );
       return ctx.answerCallbackQuery();
     }
 

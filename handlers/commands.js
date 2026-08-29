@@ -218,14 +218,13 @@ const registerCommands = (bot) => {
 
   bot.command('broadcast', async (ctx) => {
     if (!isAdmin(ctx.from.id)) return ctx.reply('❌ Доступ запрещён.');
-    broadcastState.set(ctx.from.id, { stage: 'choose_target', mode: null, filter: {} });
+    broadcastState.set(ctx.from.id, { stage: 'choose_type', filter: {} });
     const keyboard = new InlineKeyboard()
-      .text('Всем', 'bc_all').row()
-      .text('По курсу', 'bc_course').row()
-      .text('По группе', 'bc_group').row()
-      .text('Выпустившимся', 'bc_graduated').row()
+      .text('📢 Рекламная', 'bc_type_promo').row()
+      .text('⚙️ Системная', 'bc_type_system').row()
+      .text('🔔 Обязательная', 'bc_type_mandatory').row()
       .text('Отмена', 'bc_cancel');
-    await ctx.reply('Выберите аудиторию для рассылки:', { reply_markup: keyboard });
+    await ctx.reply('Выберите тип рассылки:', { reply_markup: keyboard });
   });
 
   bot.command('promote', async (ctx) => {

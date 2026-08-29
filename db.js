@@ -84,9 +84,18 @@ const getUsersByGroup = (groupName) => new Promise((resolve, reject) => {
   });
 });
 
-const getUsersByFilter = (filter = {}) => new Promise((resolve, reject) => {
+const getUsersByFilter = (filter = {}, notificationType = null) => new Promise((resolve, reject) => {
   let query = 'SELECT user_id FROM users WHERE group_name IS NOT NULL';
   const params = [];
+
+  // Фильтр по типу уведомлений (если не обязательная рассылка)
+  if (notificationType === 'promo') {
+    query += ' AND promo_notifications = 1';
+  } else if (notificationType === 'system') {
+    query += ' AND system_notifications = 1';
+  }
+  // Если notificationType === 'mandatory', то без фильтра по уведомлениям
+
   if (filter.course) {
     query += ' AND course = ?';
     params.push(filter.course);
@@ -94,9 +103,35 @@ const getUsersByFilter = (filter = {}) => new Promise((resolve, reject) => {
     query += ' AND group_name = ?';
     params.push(filter.group_name);
   }
+
   db.all(query, params, (err, rows) => {
     if (err) return reject(err);
     resolve(rows || []);
+  });
+});
+
+const countUsersByFilter = (filter = {}, notificationType = null) => new Promise((resolve, reject) => {
+  let query = 'SELECT COUNT(*) as count FROM users WHERE group_name IS NOT NULL';
+  const params = [];
+
+  // Фильтр по типу уведомлений
+  if (notificationType === 'promo') {
+    query += ' AND promo_notifications = 1';
+  } else if (notificationType === 'system') {
+    query += ' AND system_notifications = 1';
+  }
+
+  if (filter.course) {
+    query += ' AND course = ?';
+    params.push(filter.course);
+  } else if (filter.group_name) {
+    query += ' AND group_name = ?';
+    params.push(filter.group_name);
+  }
+
+  db.get(query, params, (err, row) => {
+    if (err) return reject(err);
+    resolve(row ? row.count : 0);
   });
 });
 
@@ -179,6 +214,7 @@ module.exports = {
   deleteUser,
   getUsersByGroup,
   getUsersByFilter,
+  countUsersByFilter,
   getStats,
   graduateCourse,
   graduateGroup,

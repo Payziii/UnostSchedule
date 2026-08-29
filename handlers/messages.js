@@ -1,6 +1,6 @@
 const { isAdmin, daysOfWeek, isGraduated, graduatedLabel } = require('../config');
 const { broadcastState, runBroadcast } = require('../broadcast');
-const { getUser } = require('../db');
+const { getUser, countUsersByFilter } = require('../db');
 const { getTodayImage, getTomorrowImage, getWeekImage, getTodayDayName } = require('../api');
 const { InputFile, InlineKeyboard } = require('grammy');
 const { mainKeyboard } = require('../keyboards');
@@ -137,18 +137,33 @@ const registerMessages = (bot) => {
       state.filter = { course: text.trim() };
       state.stage = 'await_text';
       broadcastState.set(userId, state);
-      return ctx.reply(`Курс: *${state.filter.course}*.\n\nОтправьте текст рассылки.`, { parse_mode: 'Markdown' });
+
+      const notifType = state.notificationType === 'mandatory' ? null : state.notificationType;
+      const count = await countUsersByFilter(state.filter, notifType);
+
+      return ctx.reply(
+        `Курс: *${state.filter.course}*\nРассылку получат *${count}* пользователей\n\nОтправьте текст рассылки.`,
+        { parse_mode: 'Markdown' }
+      );
     }
 
     if (state.stage === 'await_group') {
       state.filter = { group_name: text.trim() };
       state.stage = 'await_text';
       broadcastState.set(userId, state);
-      return ctx.reply(`Группа: *${state.filter.group_name}*.\n\nОтправьте текст рассылки.`, { parse_mode: 'Markdown' });
+
+      const notifType = state.notificationType === 'mandatory' ? null : state.notificationType;
+      const count = await countUsersByFilter(state.filter, notifType);
+
+      return ctx.reply(
+        `Группа: *${state.filter.group_name}*\nРассылку получат *${count}* пользователей\n\nОтправьте текст рассылки.`,
+        { parse_mode: 'Markdown' }
+      );
     }
 
     if (state.stage === 'await_text') {
-      runBroadcast(bot, userId, ctx.message.message_id, state.filter);
+      const notifType = state.notificationType === 'mandatory' ? null : state.notificationType;
+      runBroadcast(bot, userId, ctx.message.message_id, state.filter, notifType);
       broadcastState.delete(userId);
     }
   });
