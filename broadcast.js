@@ -26,7 +26,7 @@ const runBroadcast = async (bot, adminId, messageId, filter, notificationType, w
       if (withKeyboard) {
         await bot.api.sendMessage(
           row.user_id,
-          '⠀',
+          'undefined/undefined',
           { reply_markup: mainKeyboard() }
         );
         await sleep(100);
