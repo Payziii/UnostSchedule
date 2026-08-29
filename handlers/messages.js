@@ -80,7 +80,33 @@ const registerMessages = (bot) => {
   });
 
   bot.hears('📊 Инфо', async (ctx) => {
-    await ctx.reply('📊 *Информация*\n\nwip', { parse_mode: 'Markdown', reply_markup: mainKeyboard() });
+    try {
+      const { getStats } = require('../db');
+      const { total, byCourse } = await getStats();
+
+      let statsText = '';
+      if (byCourse.length) {
+        statsText = '\n\n*Статистика по курсам:*\n';
+        byCourse.forEach(r => {
+          const label = isGraduated(r.course) ? 'Выпустившиеся' : r.course;
+          statsText += `• ${label}: ${r.count}\n`;
+        });
+      }
+
+      const message =
+        `📊 *Информация о боте*\n` +
+        `\n👥 Всего пользователей: *${total}*` +
+        statsText +
+        `\n🔗 *Ссылки:*\n` +
+        `• [Репозиторий GitHub](https://github.com/Payziii/UnostSchedule)\n` +
+        `• [Сайт расписания](https://u.fifty.chat/)\n` +
+        `• [Политика использования](/terms)`;
+
+      await ctx.reply(message, { parse_mode: 'Markdown', reply_markup: mainKeyboard() });
+    } catch (err) {
+      console.error('Ошибка кнопки Инфо:', err);
+      await ctx.reply('❌ Не удалось получить информацию. Попробуйте позже.', { reply_markup: mainKeyboard() });
+    }
   });
 
   bot.on('message', async (ctx) => {
