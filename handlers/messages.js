@@ -2,7 +2,7 @@ const { isAdmin, daysOfWeek, isGraduated, graduatedLabel } = require('../config'
 const { broadcastState, runBroadcast } = require('../broadcast');
 const { getUser } = require('../db');
 const { getTodayImage, getTomorrowImage, getWeekImage, getTodayDayName } = require('../api');
-const { InputFile } = require('grammy');
+const { InputFile, InlineKeyboard } = require('grammy');
 const { mainKeyboard } = require('../keyboards');
 
 const graduatedNotice = (year) =>
@@ -73,9 +73,14 @@ const registerMessages = (bot) => {
     if (!user?.course) return ctx.reply('❌ Сначала выберите группу: /start', { reply_markup: mainKeyboard() });
 
     const label = isGraduated(user.course) ? graduatedLabel(user.group_name) : user.group_name;
+
+    const keyboard = new InlineKeyboard()
+      .text('⚙️ Настройки', 'profile_settings').row()
+      .text('🔄 Сменить группу', 'profile_restart');
+
     await ctx.reply(
-      `👤 *Ваш профиль*\n\nГруппа: *${label}*\nКурс: *${user.course}*\n\nЧтобы сменить группу — используйте /restart`,
-      { parse_mode: 'Markdown', reply_markup: mainKeyboard() }
+      `👤 *Ваш профиль*\n\nГруппа: *${label}*\nКурс: *${user.course}*`,
+      { parse_mode: 'Markdown', reply_markup: keyboard }
     );
   });
 

@@ -8,13 +8,26 @@ db.serialize(() => {
       user_id INTEGER PRIMARY KEY,
       course TEXT,
       group_name TEXT,
-      terms_accepted INTEGER NOT NULL DEFAULT 0
+      terms_accepted INTEGER NOT NULL DEFAULT 0,
+      promo_notifications INTEGER NOT NULL DEFAULT 1,
+      system_notifications INTEGER NOT NULL DEFAULT 1
     )
   `);
   // Миграция для баз, созданных до появления условий использования
   db.run(`ALTER TABLE users ADD COLUMN terms_accepted INTEGER NOT NULL DEFAULT 0`, (err) => {
     if (err && !/duplicate column name/i.test(err.message)) {
       console.error('Ошибка миграции terms_accepted:', err.message);
+    }
+  });
+  // Миграция для добавления настроек уведомлений
+  db.run(`ALTER TABLE users ADD COLUMN promo_notifications INTEGER NOT NULL DEFAULT 1`, (err) => {
+    if (err && !/duplicate column name/i.test(err.message)) {
+      console.error('Ошибка миграции promo_notifications:', err.message);
+    }
+  });
+  db.run(`ALTER TABLE users ADD COLUMN system_notifications INTEGER NOT NULL DEFAULT 1`, (err) => {
+    if (err && !/duplicate column name/i.test(err.message)) {
+      console.error('Ошибка миграции system_notifications:', err.message);
     }
   });
 });
@@ -141,6 +154,24 @@ const promoteGroup = (fromGroup, toCourse, toGroup) => new Promise((resolve, rej
   );
 });
 
+const toggleNotification = (userId, type) => new Promise((resolve, reject) => {
+  const column = type === 'promo' ? 'promo_notifications' : 'system_notifications';
+  db.get(`SELECT ${column} FROM users WHERE user_id = ?`, [userId], (err, row) => {
+    if (err) return reject(err);
+    const currentValue = row ? row[column] : 1;
+    const newValue = currentValue === 1 ? 0 : 1;
+    db.run(
+      `INSERT INTO users (user_id, ${column}) VALUES (?, ?)
+       ON CONFLICT(user_id) DO UPDATE SET ${column} = excluded.${column}`,
+      [userId, newValue],
+      (err) => {
+        if (err) return reject(err);
+        resolve(newValue);
+      }
+    );
+  });
+});
+
 module.exports = {
   db,
   getUser,
@@ -154,4 +185,5 @@ module.exports = {
   promoteGroup,
   hasAcceptedTerms,
   setTermsAccepted,
+  toggleNotification,
 };

@@ -1,8 +1,8 @@
 const { InputFile, InlineKeyboard } = require('grammy');
-const { saveUser, graduateCourse, graduateGroup, promoteGroup } = require('../db');
+const { saveUser, graduateCourse, graduateGroup, promoteGroup, getUser, toggleNotification, deleteUser } = require('../db');
 const { getWeekImage, getTodayImage, getTomorrowImage, getTodayDayName } = require('../api');
-const { isAdmin, GROUPS_CONFIG, daysOfWeek, GRADUATED_COURSE, graduatedLabel } = require('../config');
-const { groupKeyboard, gradCourseKeyboard, gradGroupKeyboard, mainKeyboard } = require('../keyboards');
+const { isAdmin, GROUPS_CONFIG, daysOfWeek, GRADUATED_COURSE, graduatedLabel, isGraduated } = require('../config');
+const { groupKeyboard, gradCourseKeyboard, gradGroupKeyboard, mainKeyboard, courseKeyboard } = require('../keyboards');
 const { broadcastState } = require('../broadcast');
 const { graduateState, promoteState } = require('./commands');
 
@@ -10,11 +10,71 @@ const gradConfirmKeyboard = () => new InlineKeyboard()
   .text('Подтвердить', 'grad_confirm').row()
   .text('Отмена', 'grad_cancel');
 
+const settingsKeyboard = (user) => {
+  const promoIcon = user.promo_notifications === 1 ? '✅' : '❌';
+  const systemIcon = user.system_notifications === 1 ? '✅' : '❌';
+  return new InlineKeyboard()
+    .text(`${promoIcon} Рекламные увед.`, 'settings_promo').row()
+    .text(`${systemIcon} Системные увед.`, 'settings_system').row()
+    .text('◀️ Назад', 'settings_back');
+};
+
 const registerCallbacks = (bot) => {
 
   bot.on('callback_query:data', async (ctx) => {
     const data = ctx.callbackQuery.data;
     const userId = ctx.from.id;
+
+    // --- Профиль: настройки ---
+    if (data === 'profile_settings') {
+      const user = await getUser(userId);
+      if (!user) return ctx.answerCallbackQuery({ text: 'Профиль не найден', show_alert: true });
+
+      await ctx.editMessageText(
+        `⚙️ *Настройки уведомлений*\n\nВключите или отключите типы уведомлений:`,
+        { parse_mode: 'Markdown', reply_markup: settingsKeyboard(user) }
+      );
+      return ctx.answerCallbackQuery();
+    }
+
+    // --- Профиль: сменить группу ---
+    if (data === 'profile_restart') {
+      await deleteUser(userId);
+      await ctx.editMessageText('Группа очищена. Выберите новую группу:', {
+        reply_markup: courseKeyboard()
+      });
+      return ctx.answerCallbackQuery('✅ Группа сброшена');
+    }
+
+    // --- Настройки: переключение уведомлений ---
+    if (data === 'settings_promo' || data === 'settings_system') {
+      const type = data === 'settings_promo' ? 'promo' : 'system';
+      const newValue = await toggleNotification(userId, type);
+      const user = await getUser(userId);
+
+      const statusText = newValue === 1 ? 'включены' : 'отключены';
+      const typeText = type === 'promo' ? 'Рекламные' : 'Системные';
+
+      await ctx.editMessageReplyMarkup({ reply_markup: settingsKeyboard(user) });
+      return ctx.answerCallbackQuery(`${typeText} уведомления ${statusText}`);
+    }
+
+    // --- Настройки: назад ---
+    if (data === 'settings_back') {
+      const user = await getUser(userId);
+      if (!user?.course) return ctx.answerCallbackQuery({ text: 'Профиль не найден', show_alert: true });
+
+      const label = isGraduated(user.course) ? graduatedLabel(user.group_name) : user.group_name;
+      const keyboard = new InlineKeyboard()
+        .text('⚙️ Настройки', 'profile_settings').row()
+        .text('🔄 Сменить группу', 'profile_restart');
+
+      await ctx.editMessageText(
+        `👤 *Ваш профиль*\n\nГруппа: *${label}*\nКурс: *${user.course}*`,
+        { parse_mode: 'Markdown', reply_markup: keyboard }
+      );
+      return ctx.answerCallbackQuery();
+    }
 
     // --- Выбор курса ---
     if (data.startsWith('course_')) {
