@@ -152,7 +152,7 @@ const getStats = () => new Promise((resolve, reject) => {
       db.all('SELECT course, COUNT(*) as count FROM users WHERE group_name IS NOT NULL GROUP BY course', (err, rows) => {
         if (err) return reject(err);
         result.byCourse = rows;
-        db.all('SELECT course, group_name, COUNT(*) as count FROM users WHERE group_name IS NOT NULL GROUP BY course, group_name ORDER BY count DESC LIMIT 10', (err, rows) => {
+        db.all('SELECT course, group_name, COUNT(*) as count FROM users WHERE group_name IS NOT NULL GROUP BY course, group_name ORDER BY count DESC LIMIT 100', (err, rows) => {
           if (err) return reject(err);
           result.byGroup = rows;
           resolve(result);
