@@ -1,6 +1,6 @@
 const express = require('express');
 const fs = require('fs');
-const { InputFile } = require('grammy');
+const { InlineKeyboard } = require('grammy');
 const { getUsersByGroup } = require('./db');
 
 const requireBearerToken = (req, res, next) => {
@@ -24,12 +24,14 @@ const createServer = (bot) => {
     const { group, changedDays, filePath, url } = req.body;
     console.log(`📩 Обновление расписания для группы ${group}`);
 
+    if(group != "ИСП-4304") return
+
     try {
       const users = await getUsersByGroup(group);
 
       if (users.length === 0) {
         console.log(`Нет подписчиков для группы ${group}`);
-        if (fs.existsSync(filePath)) fs.unlink(filePath, () => {});
+        if (filePath && fs.existsSync(filePath)) fs.unlink(filePath, () => {});
         return res.json({ status: 'no_users' });
       }
 
@@ -48,22 +50,25 @@ const createServer = (bot) => {
 
       if (filteredUsers.length === 0) {
         console.log(`Нет пользователей с включёнными уведомлениями для группы ${group}`);
-        if (fs.existsSync(filePath)) fs.unlink(filePath, () => {});
+        if (filePath && fs.existsSync(filePath)) fs.unlink(filePath, () => {});
         return res.json({ status: 'no_users_with_notifications' });
       }
 
-      const caption =
+      const text =
         `📢 <b>Расписание обновлено!</b>\n` +
         `Группа: <b>${group}</b>\n` +
-        `Дни: <b>${changedDays.join(', ')}</b>\n` +
-        `Ссылка: <a href="${url}">Клик</a>`;
+        `Дни: <b>${changedDays.join(', ')}</b>`;
 
-      const photo = new InputFile(filePath);
+      const keyboard = new InlineKeyboard().url('Посмотреть расписание', url);
+
       let successCount = 0;
 
       for (const user of filteredUsers) {
         try {
-          await bot.api.sendPhoto(user.user_id, photo, { caption, parse_mode: 'HTML' });
+          await bot.api.sendMessage(user.user_id, text, {
+            parse_mode: 'HTML',
+            reply_markup: keyboard,
+          });
           successCount++;
           await new Promise(r => setTimeout(r, 50));
         } catch (e) {
@@ -73,9 +78,12 @@ const createServer = (bot) => {
 
       console.log(`✅ Отправлено: ${successCount}/${filteredUsers.length}`);
 
-      setTimeout(() => {
-        if (fs.existsSync(filePath)) fs.unlink(filePath, () => {});
-      }, 10000);
+      // filePath больше не используется для отправки, но если файл всё ещё создаётся — подчищаем
+      if (filePath) {
+        setTimeout(() => {
+          if (fs.existsSync(filePath)) fs.unlink(filePath, () => {});
+        }, 10000);
+      }
 
       res.json({ status: 'ok', sent: successCount, total: filteredUsers.length });
     } catch (e) {
