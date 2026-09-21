@@ -24,7 +24,7 @@ const createServer = (bot) => {
     const { group, changedDays, filePath, url } = req.body;
     console.log(`📩 Обновление расписания для группы ${group}`);
 
-    if(group != "ИСП-4304") return res.json({status: 'ips4304'});
+    // if(group != "ИСП-4304") return res.json({status: 'ips4304'});
 
     try {
       const users = await getUsersByGroup(group);
