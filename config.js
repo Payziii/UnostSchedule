@@ -7,7 +7,7 @@ const ADMIN_IDS = process.env.ADMIN_IDS
   ? process.env.ADMIN_IDS.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id))
   : [];
 
-const API_BASE_URL = 'http://109.120.135.25:4000';
+const API_BASE_URL = 'http://104.164.62.133:4000';
 
 const daysOfWeek = ["ВОСКРЕСЕНЬЕ", "ПОНЕДЕЛЬНИК", "ВТОРНИК", "СРЕДА", "ЧЕТВЕРГ", "ПЯТНИЦА", "СУББОТА"];
 
