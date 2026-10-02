@@ -10,9 +10,11 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1145.0",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "grammy": "^1.38.3",
+    "node-cron": "^4.6.0",
     "sqlite3": "^5.1.7"
   }
 }

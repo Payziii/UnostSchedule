@@ -7,6 +7,7 @@ const { registerMessages } = require('./handlers/messages');
 const { registerInline } = require('./handlers/inline');
 const { termsGate, registerTerms } = require('./terms');
 const { createServer } = require('./server');
+const { startBackupScheduler } = require('./backup');
 
 const bot = new Bot(process.env.BOT_TOKEN);
 
@@ -22,6 +23,9 @@ registerInline(bot);
 
 // Запускаем Express-сервер
 createServer(bot);
+
+// Запускаем планировщик резервного копирования
+startBackupScheduler();
 
 // Обработка ошибок
 bot.catch((err) => {
