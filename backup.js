@@ -77,12 +77,12 @@ function startBackupScheduler() {
     return;
   }
 
-  // Запуск планировщика: каждый день в 03:00
-  cron.schedule('0 * * * *', () => {
+  // Запуск планировщика: каждый день в 22:00
+  cron.schedule('0 22 * * *', () => {
     createAndUploadBackup();
   });
 
-  console.log('[Backup] Планировщик резервного копирования запущен (ежедневно в 03:00).');
+  console.log('[Backup] Планировщик резервного копирования запущен (ежедневно в 22:00).');
 }
 
 module.exports = {
