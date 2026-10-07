@@ -108,7 +108,7 @@ const registerCommands = (bot) => {
 
   bot.command('query', async (ctx) => {
     const query = typeof ctx.match === 'string' ? ctx.match.trim() : '';
-    if (!query) return ctx.reply('❌ Введите запрос. Например:\n/query 409\n/query Оснащение\n/query Гобов');
+    if (!query) return ctx.reply('❌ Введите запрос. Например:\n/query 409\n/query Оснащение\n/query Гарбузов');
     if (query.length < 4 && (isNaN(+query) || query.length < 2)) return ctx.reply('❌ Слишком короткий запрос!');
 
     await ctx.reply('⌛ Генерирую расписание на неделю...');
