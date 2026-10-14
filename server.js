@@ -1,7 +1,7 @@
 const express = require('express');
 const fs = require('fs');
 const { InlineKeyboard } = require('grammy');
-const { getUsersByGroup } = require('./db');
+const { getUsersByGroup, logScheduleChange } = require('./db');
 
 const requireBearerToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
@@ -77,6 +77,7 @@ const createServer = (bot) => {
       }
 
       console.log(`✅ Отправлено: ${successCount}/${filteredUsers.length}`);
+      await logScheduleChange(group);
 
       // filePath больше не используется для отправки, но если файл всё ещё создаётся — подчищаем
       if (filePath) {

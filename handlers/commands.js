@@ -1,5 +1,5 @@
 const { InputFile } = require('grammy');
-const { getUser, deleteUser, getStats } = require('../db');
+const { getUser, deleteUser, getStats, logView } = require('../db');
 const { getTodayImage, getTomorrowImage, getWeekImage, getQueryImage, getRaspImage, getTodayDayName } = require('../api');
 const { daysOfWeek, isAdmin, API_BASE_URL, GRADUATED_COURSE, GRADUATED_YEARS, isGraduated, graduatedLabel } = require('../config');
 const { courseKeyboard, mainKeyboard } = require('../keyboards');
@@ -50,6 +50,7 @@ const registerCommands = (bot) => {
         caption: `📅 Расписание на *сегодня* — _${day}_\nГруппа: *${user.group_name}*`,
         parse_mode: 'Markdown',
       });
+      await logView(ctx.from.id, user.group_name, 'today');
     } catch (err) {
       console.error('Ошибка /today:', err);
       await ctx.reply('❌ Не удалось получить расписание. Попробуйте позже.');
@@ -72,6 +73,7 @@ const registerCommands = (bot) => {
         caption: `📅 Расписание на *завтра* — _${tomorrowDay}_\nГруппа: *${user.group_name}*`,
         parse_mode: 'Markdown',
       });
+      await logView(ctx.from.id, user.group_name, 'tomorrow');
     } catch (err) {
       console.error('Ошибка /tomorrow:', err);
       await ctx.reply('❌ Не удалось получить расписание. Попробуйте позже.');
@@ -100,6 +102,7 @@ const registerCommands = (bot) => {
         caption: `📅 Расписание на *неделю*\nГруппа: *${user.group_name}*${cl}`,
         parse_mode: 'Markdown',
       });
+      await logView(ctx.from.id, user.group_name, 'week');
     } catch (err) {
       console.error('Ошибка /week:', err);
       await ctx.reply('❌ Не удалось получить расписание на неделю. Попробуйте позже.');

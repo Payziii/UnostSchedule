@@ -36,6 +36,26 @@ db.serialize(() => {
       console.error('Ошибка миграции schedule_change_notifications:', err.message);
     }
   });
+
+    db.run(`
+    CREATE TABLE IF NOT EXISTS schedule_views (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      group_name TEXT NOT NULL,
+      view_type TEXT NOT NULL,
+      viewed_at INTEGER NOT NULL
+    )
+  `);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_views_group ON schedule_views (group_name, viewed_at)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_views_user ON schedule_views (user_id, viewed_at)`);
+  db.run(`
+    CREATE TABLE IF NOT EXISTS schedule_changes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      group_name TEXT NOT NULL,
+      changed_at INTEGER NOT NULL
+    )
+  `);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_changes_group ON schedule_changes (group_name, changed_at)`);
 });
 
 const getUser = (userId) => new Promise((resolve, reject) => {
@@ -219,6 +239,45 @@ const toggleNotification = (userId, type) => new Promise((resolve, reject) => {
   });
 });
 
+const TZ_MODIFIER = '+5 hours';
+
+const dbGet = (q, p = []) => new Promise((res, rej) => db.get(q, p, (e, r) => (e ? rej(e) : res(r))));
+const dbAll = (q, p = []) => new Promise((res, rej) => db.all(q, p, (e, r) => (e ? rej(e) : res(r))));
+
+// viewType: 'today' | 'tomorrow' | 'week'
+const logView = (userId, groupName, viewType) => new Promise((resolve, reject) => {
+  db.run(
+    `INSERT INTO schedule_views (user_id, group_name, view_type, viewed_at) VALUES (?, ?, ?, ?)`,
+    [userId, groupName, viewType, Math.floor(Date.now() / 1000)],
+    (err) => (err ? reject(err) : resolve())
+  );
+});
+
+const logScheduleChange = (groupName) => new Promise((resolve, reject) => {
+  db.run(
+    `INSERT INTO schedule_changes (group_name, changed_at) VALUES (?, ?)`,
+    [groupName, Math.floor(Date.now() / 1000)],
+    (err) => (err ? reject(err) : resolve())
+  );
+});
+
+// since/until - unix-секунды, чтобы считать за учебный год или любой другой период
+const getGroupWrapped = async (groupName, since = 0, until = 4102444800) => {
+  const range = [groupName, since, until];
+  const [total, byType, byHour, changes] = await Promise.all([
+    dbGet(`SELECT COUNT(*) AS count FROM schedule_views WHERE group_name = ? AND viewed_at BETWEEN ? AND ?`, range),
+    dbAll(`SELECT view_type, COUNT(*) AS count FROM schedule_views WHERE group_name = ? AND viewed_at BETWEEN ? AND ? GROUP BY view_type`, range),
+    dbAll(
+      `SELECT CAST(strftime('%H', viewed_at, 'unixepoch', ?) AS INTEGER) AS hour, COUNT(*) AS count
+       FROM schedule_views WHERE group_name = ? AND viewed_at BETWEEN ? AND ?
+       GROUP BY hour ORDER BY hour`,
+      [TZ_MODIFIER, ...range]
+    ),
+    dbGet(`SELECT COUNT(*) AS count FROM schedule_changes WHERE group_name = ? AND changed_at BETWEEN ? AND ?`, range),
+  ]);
+  return { total: total.count, byType, byHour, changes: changes.count };
+};
+
 module.exports = {
   db,
   getUser,
@@ -234,4 +293,7 @@ module.exports = {
   hasAcceptedTerms,
   setTermsAccepted,
   toggleNotification,
+  logView,
+  logScheduleChange,
+  getGroupWrapped,
 };
