@@ -1,5 +1,5 @@
 const { InputFile } = require('grammy');
-const { getUser, deleteUser, getStats, logView } = require('../db');
+const { getUser, deleteUser, getStats, logView, getGroupWrapped } = require('../db');
 const { getTodayImage, getTomorrowImage, getWeekImage, getQueryImage, getRaspImage, getTodayDayName } = require('../api');
 const { daysOfWeek, isAdmin, API_BASE_URL, GRADUATED_COURSE, GRADUATED_YEARS, isGraduated, graduatedLabel } = require('../config');
 const { courseKeyboard, mainKeyboard } = require('../keyboards');
@@ -193,6 +193,19 @@ const registerCommands = (bot) => {
       );
     } catch (err) {
       await ctx.reply('Ошибка при поиске.');
+    }
+  });
+
+  bot.command('wrapped', async (ctx) => {
+    if (!isAdmin(ctx.from.id)) return ctx.reply('❌ Доступ запрещён.');
+    const args = ctx.message.text.trim().split(' ');
+    if (args.length < 2 || isNaN(args[1])) return;
+
+    try {
+      const data = await getGroupWrapped(args[1]);
+      ctx.reply(`${data}`)
+    } catch (err) {
+      await ctx.reply('Ошибка');
     }
   });
 
