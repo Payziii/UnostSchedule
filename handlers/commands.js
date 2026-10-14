@@ -203,7 +203,7 @@ const registerCommands = (bot) => {
 
     try {
       const data = await getGroupWrapped(args[1]);
-      ctx.reply(`${data}`)
+      await ctx.reply(`1 ${data}`)
     } catch (err) {
       await ctx.reply('Ошибка');
     }
