@@ -199,7 +199,7 @@ const registerCommands = (bot) => {
   bot.command('wrapped', async (ctx) => {
     if (!isAdmin(ctx.from.id)) return ctx.reply('❌ Доступ запрещён.');
     const args = ctx.message.text.trim().split(' ');
-    if (args.length < 2 || isNaN(args[1])) return;
+    if (args.length < 2) return;
 
     try {
       const data = await getGroupWrapped(args[1]);
