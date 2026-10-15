@@ -1,6 +1,6 @@
 const { isAdmin, daysOfWeek, isGraduated, graduatedLabel } = require('../config');
 const { broadcastState, runBroadcast } = require('../broadcast');
-const { getUser, countUsersByFilter } = require('../db');
+const { getUser, countUsersByFilter, logView } = require('../db');
 const { getTodayImage, getTomorrowImage, getWeekImage, getTodayDayName } = require('../api');
 const { InputFile, InlineKeyboard } = require('grammy');
 const { mainKeyboard } = require('../keyboards');
@@ -23,6 +23,7 @@ const registerMessages = (bot) => {
         caption: `📅 Расписание на *сегодня* — _${day}_\nГруппа: *${user.group_name}*`,
         parse_mode: 'Markdown',
       });
+      await logView(ctx.from.id, user.group_name, 'today');
     } catch (err) {
       console.error('Ошибка кнопки Сегодня:', err);
       await ctx.reply('❌ Не удалось получить расписание. Попробуйте позже.');
@@ -44,6 +45,7 @@ const registerMessages = (bot) => {
         caption: `📅 Расписание на *завтра* — _${tomorrowDay}_\nГруппа: *${user.group_name}*`,
         parse_mode: 'Markdown',
       });
+      await logView(ctx.from.id, user.group_name, 'tomorrow');
     } catch (err) {
       console.error('Ошибка кнопки Завтра:', err);
       await ctx.reply('❌ Не удалось получить расписание. Попробуйте позже.');
@@ -62,6 +64,7 @@ const registerMessages = (bot) => {
         caption: `📅 Расписание на *неделю*\nГруппа: *${user.group_name}*`,
         parse_mode: 'Markdown',
       });
+      await logView(ctx.from.id, user.group_name, 'week');
     } catch (err) {
       console.error('Ошибка кнопки Неделя:', err);
       await ctx.reply('❌ Не удалось получить расписание на неделю. Попробуйте позже.');
