@@ -1,11 +1,10 @@
-const { InputFile } = require('grammy');
+const { InlineKeyboard, InputFile, InputMediaBuilder } = require('grammy');
 const { getUser, deleteUser, getStats, logView, getGroupWrapped } = require('../db');
 const { getTodayImage, getTomorrowImage, getWeekImage, getQueryImage, getRaspImage, getTodayDayName } = require('../api');
 const { daysOfWeek, isAdmin, API_BASE_URL, GRADUATED_COURSE, GRADUATED_YEARS, isGraduated, graduatedLabel } = require('../config');
 const { courseKeyboard, mainKeyboard } = require('../keyboards');
 const { broadcastState } = require('../broadcast');
 const { sendTerms } = require('../terms');
-const { InlineKeyboard } = require('grammy');
 
 const graduatedNotice = (year) =>
   `🎓 Вы выпустились в ${year} году.\nЧтобы выбрать группу заново — /restart`;
@@ -42,19 +41,27 @@ const registerCommands = (bot) => {
     if (!user?.course) return ctx.reply('❌ Сначала выберите группу: /start');
     if (isGraduated(user.course)) return ctx.reply(graduatedNotice(user.group_name));
 
-    await ctx.reply('⌛ Генерирую расписание на сегодня...', { reply_markup: mainKeyboard() });
+    const loading = await ctx.reply('⌛ Генерирую расписание на сегодня...');
     try {
       const day = getTodayDayName();
       const buffer = await getTodayImage(user.group_name);
-      await ctx.replyWithPhoto(new InputFile(buffer, 'schedule.png'), {
+      const media = InputMediaBuilder.photo(new InputFile(buffer, 'schedule.png'), {
         caption: `📅 Расписание на *сегодня* — _${day}_\nГруппа: *${user.group_name}*`,
         parse_mode: 'Markdown',
       });
-      await logView(ctx.from.id, user.group_name, 'today');
+
+      await ctx.api.editMessageMedia(ctx.chat.id, loading.message_id, media);
     } catch (err) {
       console.error('Ошибка /today:', err);
-      await ctx.reply('❌ Не удалось получить расписание. Попробуйте позже.');
+      await ctx.api
+        .editMessageText(
+          ctx.chat.id,
+          loading.message_id,
+          '❌ Расписание не опубликовано, либо произошла ошибка!'
+        )
+        .catch(() => { });
     }
+    await logView(ctx.from.id, user.group_name, 'today');
   });
 
   bot.command('tomorrow', async (ctx) => {
@@ -62,22 +69,29 @@ const registerCommands = (bot) => {
     if (!user?.course) return ctx.reply('❌ Сначала выберите группу: /start');
     if (isGraduated(user.course)) return ctx.reply(graduatedNotice(user.group_name));
 
-    await ctx.reply('⌛ Генерирую расписание на завтра...');
+    const loading = await ctx.reply('⌛ Генерирую расписание на завтра...');
     try {
-      const now = new Date();
       const todayDay = getTodayDayName();
       const todayIndex = daysOfWeek.indexOf(todayDay);
       const tomorrowDay = daysOfWeek[(todayIndex + 1) % 7];
       const buffer = await getTomorrowImage(user.group_name);
-      await ctx.replyWithPhoto(new InputFile(buffer, 'schedule.png'), {
+      const media = InputMediaBuilder.photo(new InputFile(buffer, 'schedule.png'), {
         caption: `📅 Расписание на *завтра* — _${tomorrowDay}_\nГруппа: *${user.group_name}*`,
         parse_mode: 'Markdown',
       });
-      await logView(ctx.from.id, user.group_name, 'tomorrow');
+
+      await ctx.api.editMessageMedia(ctx.chat.id, loading.message_id, media);
     } catch (err) {
       console.error('Ошибка /tomorrow:', err);
-      await ctx.reply('❌ Не удалось получить расписание. Попробуйте позже.');
+      await ctx.api
+        .editMessageText(
+          ctx.chat.id,
+          loading.message_id,
+          '❌ Расписание не опубликовано, либо произошла ошибка!'
+        )
+        .catch(() => { });
     }
+    await logView(ctx.from.id, user.group_name, 'tomorrow');
   });
 
   bot.command('week', async (ctx) => {
@@ -87,7 +101,7 @@ const registerCommands = (bot) => {
 
     const inputUrl = typeof ctx.match === 'string' ? ctx.match.trim() : '';
     let cl = '';
-    await ctx.reply('⌛ Генерирую расписание на неделю...');
+    const loading = await ctx.reply('⌛ Генерирую расписание на неделю...');
 
     try {
       const extraParams = {};
@@ -98,15 +112,23 @@ const registerCommands = (bot) => {
       }
 
       const buffer = await getWeekImage(user.group_name, extraParams);
-      await ctx.replyWithPhoto(new InputFile(buffer, 'week_schedule.png'), {
+      const media = InputMediaBuilder.photo(new InputFile(buffer, 'week_schedule.png'), {
         caption: `📅 Расписание на *неделю*\nГруппа: *${user.group_name}*${cl}`,
         parse_mode: 'Markdown',
       });
-      await logView(ctx.from.id, user.group_name, 'week');
+
+      await ctx.api.editMessageMedia(ctx.chat.id, loading.message_id, media);
     } catch (err) {
       console.error('Ошибка /week:', err);
-      await ctx.reply('❌ Не удалось получить расписание на неделю. Попробуйте позже.');
+      await ctx.api
+        .editMessageText(
+          ctx.chat.id,
+          loading.message_id,
+          '❌ Расписание не опубликовано, либо произошла ошибка!'
+        )
+        .catch(() => { });
     }
+    await logView(ctx.from.id, user.group_name, 'week');
   });
 
   bot.command('query', async (ctx) => {
