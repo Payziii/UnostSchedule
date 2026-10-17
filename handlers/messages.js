@@ -18,6 +18,13 @@ const registerMessages = (bot) => {
     const loading = await ctx.reply('⌛ Генерирую расписание на сегодня...');
     try {
       const day = getTodayDayName();
+      if (todayDay == "ВОСКРЕСЕНЬЕ") return await ctx.api
+        .editMessageText(
+          ctx.chat.id,
+          loading.message_id,
+          '❌ Сегодня воскресенье!'
+        )
+        .catch(() => { });
       const buffer = await getTodayImage(user.group_name);
       const media = InputMediaBuilder.photo(new InputFile(buffer, 'schedule.png'), {
         caption: `📅 Расписание на *сегодня* — _${day}_\nГруппа: *${user.group_name}*`,
@@ -46,6 +53,13 @@ const registerMessages = (bot) => {
     const loading = await ctx.reply('⌛ Генерирую расписание на завтра...');
     try {
       const todayDay = getTodayDayName();
+      if (todayDay == "СУББОТА") return await ctx.api
+        .editMessageText(
+          ctx.chat.id,
+          loading.message_id,
+          '❌ Завтра воскресенье!'
+        )
+        .catch(() => { });
       const todayIndex = daysOfWeek.indexOf(todayDay);
       const tomorrowDay = daysOfWeek[(todayIndex + 1) % 7];
       const buffer = await getTomorrowImage(user.group_name);
