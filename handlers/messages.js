@@ -73,7 +73,7 @@ const registerMessages = (bot) => {
     if (!user?.course) return ctx.reply('❌ Сначала выберите группу: /start');
     if (isGraduated(user.course)) return ctx.reply(graduatedNotice(user.group_name));
 
-    const loading = await ctx.reply('⌛ Генерирую расписание на неделю...', { reply_markup: mainKeyboard() });
+    const loading = await ctx.reply('⌛ Генерирую расписание на неделю...');
     try {
       const buffer = await getWeekImage(user.group_name, {});
       const media = InputMediaBuilder.photo(new InputFile(buffer, 'week_schedule.png'), {
