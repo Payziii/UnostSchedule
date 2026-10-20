@@ -19,6 +19,14 @@ bot.api.config.use(autoRetry({ maxRetryAttempts: 3, maxDelaySeconds: 10 }));
 
 bot.use(sequentialize((ctx) => ctx.chat?.id.toString()));
 
+bot.use(async (ctx, next) => {
+  const id = ctx.from?.id;
+  const t = Date.now();
+  console.log(`[${id}] начало`);
+  await next();
+  console.log(`[${id}] конец, ${Date.now() - t} мс`);
+});
+
 // Согласие с условиями — до всех остальных хендлеров
 registerTerms(bot);
 bot.use(termsGate);
