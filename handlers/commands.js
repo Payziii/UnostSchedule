@@ -44,7 +44,7 @@ const registerCommands = (bot) => {
     const loading = await ctx.reply('⌛ Генерирую расписание на сегодня...');
     try {
       const day = getTodayDayName();
-      if (todayDay == "ВОСКРЕСЕНЬЕ") return await ctx.api
+      if (day == "ВОСКРЕСЕНЬЕ") return await ctx.api
         .editMessageText(
           ctx.chat.id,
           loading.message_id,
