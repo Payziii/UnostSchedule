@@ -1,5 +1,8 @@
 require('dotenv').config();
 const { Bot, GrammyError, HttpError } = require('grammy');
+const { run, sequentialize } = require("@grammyjs/runner");
+const { autoRetry } = require("@grammyjs/auto-retry");
+const { apiThrottler } = require("@grammyjs/transformer-throttler");
 
 const { registerCommands } = require('./handlers/commands');
 const { registerCallbacks } = require('./handlers/callbacks');
@@ -10,6 +13,11 @@ const { createServer } = require('./server');
 const { startBackupScheduler } = require('./backup');
 
 const bot = new Bot(process.env.BOT_TOKEN);
+
+bot.api.config.use(apiThrottler());
+bot.api.config.use(autoRetry({ maxRetryAttempts: 3, maxDelaySeconds: 10 }));
+
+bot.use(sequentialize((ctx) => ctx.chat?.id.toString()));
 
 // Согласие с условиями — до всех остальных хендлеров
 registerTerms(bot);
@@ -41,5 +49,5 @@ bot.catch((err) => {
   }
 });
 
-bot.start();
+run(bot);
 console.log('Бот запущен...');
