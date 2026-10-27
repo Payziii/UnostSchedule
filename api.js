@@ -26,17 +26,36 @@ const fetchScheduleImage = async (url) => {
   throw new Error(data.status === false ? 'Расписание не найдено' : 'Неизвестная ошибка');
 };
 
-const getScheduleImage = async (day, group) => {
+const getScheduleImage = async (day, group, extraParams = {}) => {
   const course = findCourseByGroup(group);
   if (!course) throw new Error('Course not found');
-  const params = new URLSearchParams({ day, group, course });
+  const params = new URLSearchParams();
+  params.set('day', day);
+  params.set('group', group);
+  params.set('course', course);
+  if (extraParams && typeof extraParams === 'object') {
+    for (const [key, val] of Object.entries(extraParams)) {
+      if (val !== undefined && val !== null) {
+        params.set(key, val);
+      }
+    }
+  }
   return fetchScheduleImage(`${API_BASE_URL}/o/schedule?${params}`);
 };
 
 const getWeekImage = async (group, extraParams = {}) => {
   const course = findCourseByGroup(group);
   if (!course) throw new Error('Course not found');
-  const params = new URLSearchParams({ group, course, ...extraParams });
+  const params = new URLSearchParams();
+  params.set('group', group);
+  params.set('course', course);
+  if (extraParams && typeof extraParams === 'object') {
+    for (const [key, val] of Object.entries(extraParams)) {
+      if (val !== undefined && val !== null) {
+        params.set(key, val);
+      }
+    }
+  }
   return fetchScheduleImage(`${API_BASE_URL}/o/week?${params}`);
 };
 
@@ -57,18 +76,18 @@ const getTodayDayName = () => {
   return formatter.format(new Date()).toUpperCase();
 };
 
-const getTodayImage = async (group) => {
+const getTodayImage = async (group, extraParams = {}) => {
   const day = getTodayDayName();
   if (!daysOfWeek.includes(day)) throw new Error(`Неверный день недели: ${day}`);
-  return getScheduleImage(day, group);
+  return getScheduleImage(day, group, extraParams);
 };
 
-const getTomorrowImage = async (group) => {
+const getTomorrowImage = async (group, extraParams = {}) => {
   const today = getTodayDayName();
   const todayIndex = daysOfWeek.indexOf(today);
   if (todayIndex === -1) throw new Error(`Неверный день недели: ${today}`);
   const tomorrowDay = daysOfWeek[(todayIndex + 1) % 7];
-  return getScheduleImage(tomorrowDay, group);
+  return getScheduleImage(tomorrowDay, group, extraParams);
 };
 
 module.exports = {

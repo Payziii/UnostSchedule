@@ -11,7 +11,8 @@ db.serialize(() => {
       terms_accepted INTEGER NOT NULL DEFAULT 0,
       promo_notifications INTEGER NOT NULL DEFAULT 1,
       system_notifications INTEGER NOT NULL DEFAULT 1,
-      schedule_change_notifications INTEGER NOT NULL DEFAULT 1
+      schedule_change_notifications INTEGER NOT NULL DEFAULT 1,
+      table_type TEXT NOT NULL DEFAULT 'old'
     )
   `);
   // Миграция для баз, созданных до появления условий использования
@@ -34,6 +35,14 @@ db.serialize(() => {
   db.run(`ALTER TABLE users ADD COLUMN schedule_change_notifications INTEGER NOT NULL DEFAULT 1`, (err) => {
     if (err && !/duplicate column name/i.test(err.message)) {
       console.error('Ошибка миграции schedule_change_notifications:', err.message);
+    }
+  });
+
+
+  // Миграция для типа таблиц (old / new)
+  db.run(`ALTER TABLE users ADD COLUMN table_type TEXT NOT NULL DEFAULT 'old'`, (err) => {
+    if (err && !/duplicate column name/i.test(err.message)) {
+      console.error('Ошибка миграции table_type:', err.message);
     }
   });
 
@@ -239,6 +248,35 @@ const toggleNotification = (userId, type) => new Promise((resolve, reject) => {
   });
 });
 
+const toggleTableType = (userId) => new Promise((resolve, reject) => {
+  db.get(`SELECT table_type FROM users WHERE user_id = ?`, [userId], (err, row) => {
+    if (err) return reject(err);
+    const currentValue = (row && row.table_type) || 'old';
+    const newValue = currentValue === 'new' ? 'old' : 'new';
+    db.run(
+      `INSERT INTO users (user_id, table_type) VALUES (?, ?)
+       ON CONFLICT(user_id) DO UPDATE SET table_type = excluded.table_type`,
+      [userId, newValue],
+      (err) => {
+        if (err) return reject(err);
+        resolve(newValue);
+      }
+    );
+  });
+});
+
+const setTableType = (userId, tableType) => new Promise((resolve, reject) => {
+  db.run(
+    `INSERT INTO users (user_id, table_type) VALUES (?, ?)
+     ON CONFLICT(user_id) DO UPDATE SET table_type = excluded.table_type`,
+    [userId, tableType],
+    (err) => {
+      if (err) return reject(err);
+      resolve();
+    }
+  );
+});
+
 const TZ_MODIFIER = '+5 hours';
 
 const dbGet = (q, p = []) => new Promise((res, rej) => db.get(q, p, (e, r) => (e ? rej(e) : res(r))));
@@ -293,6 +331,8 @@ module.exports = {
   hasAcceptedTerms,
   setTermsAccepted,
   toggleNotification,
+  toggleTableType,
+  setTableType,
   logView,
   logScheduleChange,
   getGroupWrapped,

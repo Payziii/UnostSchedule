@@ -25,7 +25,8 @@ const registerMessages = (bot) => {
           '❌ Сегодня воскресенье!'
         )
         .catch(() => { });
-      const buffer = await getTodayImage(user.group_name);
+      const extraParams = user?.table_type === 'new' ? { table: 'new' } : {};
+      const buffer = await getTodayImage(user.group_name, extraParams);
       const media = InputMediaBuilder.photo(new InputFile(buffer, 'schedule.png'), {
         caption: `📅 Расписание на *сегодня* — _${day}_\nГруппа: *${user.group_name}*`,
         parse_mode: 'Markdown',
@@ -62,7 +63,8 @@ const registerMessages = (bot) => {
         .catch(() => { });
       const todayIndex = daysOfWeek.indexOf(todayDay);
       const tomorrowDay = daysOfWeek[(todayIndex + 1) % 7];
-      const buffer = await getTomorrowImage(user.group_name);
+      const extraParams = user?.table_type === 'new' ? { table: 'new' } : {};
+      const buffer = await getTomorrowImage(user.group_name, extraParams);
       const media = InputMediaBuilder.photo(new InputFile(buffer, 'schedule.png'), {
         caption: `📅 Расписание на *завтра* — _${tomorrowDay}_\nГруппа: *${user.group_name}*`,
         parse_mode: 'Markdown',
@@ -89,7 +91,8 @@ const registerMessages = (bot) => {
 
     const loading = await ctx.reply('⌛ Генерирую расписание на неделю...');
     try {
-      const buffer = await getWeekImage(user.group_name, {});
+      const extraParams = user?.table_type === 'new' ? { table: 'new' } : {};
+      const buffer = await getWeekImage(user.group_name, extraParams);
       const media = InputMediaBuilder.photo(new InputFile(buffer, 'week_schedule.png'), {
         caption: `📅 Расписание на *неделю*\nГруппа: *${user.group_name}*`,
         parse_mode: 'Markdown',
@@ -120,7 +123,7 @@ const registerMessages = (bot) => {
       .text('🔄 Сменить группу', 'profile_restart');
 
     await ctx.reply(
-      `👤 *Ваш профиль*\n\nГруппа: *${label}*\nКурс: *${user.course}*`,
+      `👤 *Ваш профиль*\n\nГруппа: *${label}*\nКурс: *${user.course}*\nВид таблиц: *${user.table_type === 'new' ? 'новый' : 'старый'}*`,
       { parse_mode: 'Markdown', reply_markup: keyboard }
     );
   });

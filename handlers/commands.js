@@ -51,7 +51,8 @@ const registerCommands = (bot) => {
           '❌ Сегодня воскресенье!'
         )
         .catch(() => { });
-      const buffer = await getTodayImage(user.group_name);
+      const extraParams = user?.table_type === 'new' ? { table: 'new' } : {};
+      const buffer = await getTodayImage(user.group_name, extraParams);
       const media = InputMediaBuilder.photo(new InputFile(buffer, 'schedule.png'), {
         caption: `📅 Расписание на *сегодня* — _${day}_\nГруппа: *${user.group_name}*`,
         parse_mode: 'Markdown',
@@ -88,7 +89,8 @@ const registerCommands = (bot) => {
         .catch(() => { });
       const todayIndex = daysOfWeek.indexOf(todayDay);
       const tomorrowDay = daysOfWeek[(todayIndex + 1) % 7];
-      const buffer = await getTomorrowImage(user.group_name);
+      const extraParams = user?.table_type === 'new' ? { table: 'new' } : {};
+      const buffer = await getTomorrowImage(user.group_name, extraParams);
       const media = InputMediaBuilder.photo(new InputFile(buffer, 'schedule.png'), {
         caption: `📅 Расписание на *завтра* — _${tomorrowDay}_\nГруппа: *${user.group_name}*`,
         parse_mode: 'Markdown',
@@ -119,6 +121,9 @@ const registerCommands = (bot) => {
 
     try {
       const extraParams = {};
+      if (user?.table_type === 'new') {
+        extraParams.table = 'new';
+      }
       if (inputUrl && (inputUrl.startsWith('http://') || inputUrl.startsWith('https://'))) {
         extraParams.url = inputUrl;
         cl = `\nИспользуется [кастомная ссылка](${inputUrl})`;
@@ -224,7 +229,8 @@ const registerCommands = (bot) => {
       const groupLabel = isGraduated(user.course) ? graduatedLabel(user.group_name) : user.group_name;
       await ctx.reply(
         `Пользователь *${args[1]}*\nКурс: *${user.course || '—'}*\nГруппа: *${groupLabel || '—'}*\n` +
-        `Условия: *${user.terms_accepted === 1 ? 'приняты' : 'не приняты'}*`,
+        `Условия: *${user.terms_accepted === 1 ? 'приняты' : 'не приняты'}*\n` +
+        `Вид таблиц: *${user.table_type === 'new' ? 'новый' : 'старый'}*`,
         { parse_mode: 'Markdown' }
       );
     } catch (err) {

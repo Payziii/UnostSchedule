@@ -1,5 +1,5 @@
 const { InputFile, InlineKeyboard } = require('grammy');
-const { saveUser, graduateCourse, graduateGroup, promoteGroup, getUser, toggleNotification, deleteUser, countUsersByFilter } = require('../db');
+const { saveUser, graduateCourse, graduateGroup, promoteGroup, getUser, toggleNotification, toggleTableType, deleteUser, countUsersByFilter } = require('../db');
 const { getWeekImage, getTodayImage, getTomorrowImage, getTodayDayName } = require('../api');
 const { isAdmin, GROUPS_CONFIG, daysOfWeek, GRADUATED_COURSE, graduatedLabel, isGraduated } = require('../config');
 const { groupKeyboard, gradCourseKeyboard, gradGroupKeyboard, mainKeyboard, courseKeyboard } = require('../keyboards');
@@ -11,10 +11,13 @@ const gradConfirmKeyboard = () => new InlineKeyboard()
   .text('Отмена', 'grad_cancel');
 
 const settingsKeyboard = (user) => {
+  const isNewTable = user && user.table_type === 'new';
+  const tableLabel = isNewTable ? '✨ Вид таблиц: Новый' : '📋 Вид таблиц: Старый';
   const promoIcon = user.promo_notifications === 1 ? '✅' : '❌';
   const systemIcon = user.system_notifications === 1 ? '✅' : '❌';
   const scheduleIcon = user.schedule_change_notifications === 1 ? '✅' : '❌';
   return new InlineKeyboard()
+    .text(tableLabel, 'settings_table_type').row()
     .text(`${promoIcon} Рекламные увед.`, 'settings_promo').row()
     .text(`${systemIcon} Системные увед.`, 'settings_system').row()
     .text(`${scheduleIcon} Увед. об изменениях`, 'settings_schedule').row()
@@ -33,8 +36,9 @@ const registerCallbacks = (bot) => {
       if (!user) return ctx.answerCallbackQuery({ text: 'Профиль не найден', show_alert: true });
 
       await ctx.editMessageText(
-        `⚙️ *Настройки уведомлений*\n\n` +
-        `Управляйте типами уведомлений, которые вы получаете:\n\n` +
+        `⚙️ *Настройки*\n\n` +
+        `Управляйте параметрами бота и уведомлениями:\n\n` +
+        `• *Вид таблиц* — вид таблицы расписания (старый / новый)\n` +
         `• *Рекламные* — реклама и рекомендации\n` +
         `• *Системные* — новости о функциях бота\n` +
         `• *Об изменениях* — обновления расписания (основная функция бота)\n\n` +
@@ -51,6 +55,14 @@ const registerCallbacks = (bot) => {
         reply_markup: courseKeyboard()
       });
       return ctx.answerCallbackQuery('✅ Группа сброшена');
+    }
+
+    // --- Настройки: переключение вида таблиц ---
+    if (data === 'settings_table_type') {
+      const newValue = await toggleTableType(userId);
+      const user = await getUser(userId);
+      await ctx.editMessageReplyMarkup({ reply_markup: settingsKeyboard(user) });
+      return ctx.answerCallbackQuery(newValue === 'new' ? '✨ Включен новый вид таблиц' : '📋 Включен старый вид таблиц');
     }
 
     // --- Настройки: переключение уведомлений ---
@@ -79,7 +91,7 @@ const registerCallbacks = (bot) => {
         .text('🔄 Сменить группу', 'profile_restart');
 
       await ctx.editMessageText(
-        `👤 *Ваш профиль*\n\nГруппа: *${label}*\nКурс: *${user.course}*`,
+        `👤 *Ваш профиль*\n\nГруппа: *${label}*\nКурс: *${user.course}*\nВид таблиц: *${user.table_type === 'new' ? 'новый' : 'старый'}*`,
         { parse_mode: 'Markdown', reply_markup: keyboard }
       );
       return ctx.answerCallbackQuery();
@@ -114,7 +126,9 @@ const registerCallbacks = (bot) => {
     if (data.startsWith('show_week_')) {
       const group = data.substring(10);
       try {
-        const buffer = await getWeekImage(group);
+        const user = await getUser(userId);
+        const extraParams = user?.table_type === 'new' ? { table: 'new' } : {};
+        const buffer = await getWeekImage(group, extraParams);
         await ctx.editMessageMedia({
           type: 'photo',
           media: new InputFile(buffer, 'week_schedule.png'),
@@ -134,7 +148,9 @@ const registerCallbacks = (bot) => {
     if (data.startsWith('show_today_')) {
       const group = data.substring(11);
       try {
-        const buffer = await getTodayImage(group);
+        const user = await getUser(userId);
+        const extraParams = user?.table_type === 'new' ? { table: 'new' } : {};
+        const buffer = await getTodayImage(group, extraParams);
         const day = getTodayDayName();
         await ctx.editMessageMedia({
           type: 'photo',
@@ -155,7 +171,9 @@ const registerCallbacks = (bot) => {
     if (data.startsWith('show_tomorrow_')) {
       const group = data.substring(14);
       try {
-        const buffer = await getTomorrowImage(group);
+        const user = await getUser(userId);
+        const extraParams = user?.table_type === 'new' ? { table: 'new' } : {};
+        const buffer = await getTomorrowImage(group, extraParams);
         const now = new Date();
         now.setDate(now.getDate() + 1);
         const day = new Intl.DateTimeFormat('ru-RU', {
