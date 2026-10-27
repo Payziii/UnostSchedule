@@ -190,12 +190,12 @@ const registerCommands = (bot) => {
   bot.command('stats', async (ctx) => {
     if (!isAdmin(ctx.from.id)) return ctx.reply('❌ Доступ запрещён.');
     try {
-      const { total, termsAccepted, byCourse, byGroup } = await getStats();
+      const { total, termsAccepted, byCourse, byGroup, newTableCount } = await getStats();
       const graduatedTotal = byCourse
         .filter(r => isGraduated(r.course))
         .reduce((sum, r) => sum + r.count, 0);
 
-      let message = `*Статистика бота*\n\n👥 С выбранной группой: *${total}*\n📋 Приняли условия: *${termsAccepted}*\n🎓 Выпустившихся: *${graduatedTotal}*\n\n`;
+      let message = `*Статистика бота*\n\n👥 С выбранной группой: *${total}*\n📋 Приняли условия: *${termsAccepted}*\n🎓 Выпустившихся: *${graduatedTotal}*\n✨ Новый тип таблиц: *${newTableCount}*\n\n`;
       if (byCourse.length) {
         message += `*По курсам:*\n`;
         byCourse.forEach(r => {

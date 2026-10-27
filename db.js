@@ -178,6 +178,9 @@ const getStats = () => new Promise((resolve, reject) => {
     db.get('SELECT COUNT(*) as count FROM users WHERE terms_accepted = 1', (err, row) => {
       if (err) return reject(err);
       result.termsAccepted = row.count;
+      db.get("SELECT COUNT(*) as count FROM users WHERE table_type = 'new'", (err, row) => {
+        if (err) return reject(err);
+        result.newTableCount = row ? row.count : 0;
       db.all('SELECT course, COUNT(*) as count FROM users WHERE group_name IS NOT NULL GROUP BY course', (err, rows) => {
         if (err) return reject(err);
         result.byCourse = rows;
@@ -189,6 +192,8 @@ const getStats = () => new Promise((resolve, reject) => {
       });
     });
   });
+});
+
 });
 
 const graduateCourse = (fromCourse, toCourse, toGroup) => new Promise((resolve, reject) => {
