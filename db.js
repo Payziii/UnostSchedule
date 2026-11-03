@@ -321,6 +321,13 @@ const getGroupWrapped = async (groupName, since = 0, until = 4102444800) => {
   return { total: total.count, byType, byHour, changes: changes.count };
 };
 
+const getPromoUsers = () => new Promise((resolve, reject) => {
+  db.all('SELECT user_id FROM users WHERE promo_notifications = 1 ORDER BY user_id ASC', (err, rows) => {
+    if (err) return reject(err);
+    resolve(rows || []);
+  });
+});
+
 module.exports = {
   db,
   getUser,
@@ -341,4 +348,5 @@ module.exports = {
   logView,
   logScheduleChange,
   getGroupWrapped,
+  getPromoUsers,
 };

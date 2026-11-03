@@ -1,5 +1,5 @@
 const { InlineKeyboard, InputFile, InputMediaBuilder } = require('grammy');
-const { getUser, deleteUser, getStats, logView, getGroupWrapped } = require('../db');
+const { getUser, deleteUser, getStats, logView, getGroupWrapped, getPromoUsers } = require('../db');
 const { getTodayImage, getTomorrowImage, getWeekImage, getQueryImage, getRaspImage, getTodayDayName } = require('../api');
 const { daysOfWeek, isAdmin, API_BASE_URL, GRADUATED_COURSE, GRADUATED_YEARS, isGraduated, graduatedLabel } = require('../config');
 const { courseKeyboard, mainKeyboard } = require('../keyboards');
@@ -283,6 +283,28 @@ const registerCommands = (bot) => {
       .text('🔔 Обязательная', 'bc_type_mandatory').row()
       .text('Отмена', 'bc_cancel');
     await ctx.reply('Выберите тип рассылки:', { reply_markup: keyboard });
+  });
+
+  bot.command('export', async (ctx) => {
+    if (!isAdmin(ctx.from.id)) return ctx.reply('❌ Доступ запрещён.');
+
+    try {
+      const users = await getPromoUsers();
+      if (!users.length) {
+        return ctx.reply('⚠️ Пользователей, подписанных на рекламную рассылку, не найдено.');
+      }
+
+      const content = users.map(u => u.user_id).join('\n') + '\n';
+      const file = new InputFile(Buffer.from(content, 'utf-8'), 'promo_users.txt');
+
+      await ctx.replyWithDocument(file, {
+        caption: `📄 Экспорт пользователей, подписанных на рекламную рассылку\n\nВсего пользователей: *${users.length}*`,
+        parse_mode: 'Markdown'
+      });
+    } catch (err) {
+      console.error('Ошибка /export:', err);
+      await ctx.reply('❌ Ошибка при формировании файла экспорта.');
+    }
   });
 
   bot.command('promote', async (ctx) => {
