@@ -324,6 +324,56 @@ const registerCommands = (bot) => {
     );
   });
 
+  // ТЕСТОВАЯ КОМАНДА ДЛЯ АДМИНОВ (нагрузочное тестирование 100 запросов)
+  bot.command(['test_load', 'testload'], async (ctx) => {
+    if (!isAdmin(ctx.from.id)) return ctx.reply('❌ Доступ запрещён.');
+
+    const loading = await ctx.reply('⏳ Запускаю 100 одновременных запросов к API...');
+    const startTime = Date.now();
+
+    const requests = Array.from({ length: 100 }, (_, i) =>
+      getWeekImage('ИСП-3304', { test_req: i })
+    );
+
+    const results = await Promise.allSettled(requests);
+    const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+
+    let success = 0;
+    let rateLimited = 0;
+    let otherErrors = 0;
+    const sampleErrors = new Set();
+
+    results.forEach((r) => {
+      if (r.status === 'fulfilled') {
+        success++;
+      } else {
+        const msg = r.reason?.message || String(r.reason);
+        if (msg.includes('перегружен') || msg.includes('429') || /quota|rate limit/i.test(msg)) {
+          rateLimited++;
+        } else {
+          otherErrors++;
+        }
+        sampleErrors.add(msg);
+      }
+    });
+
+    await ctx.api
+      .editMessageText(
+        ctx.chat.id,
+        loading.message_id,
+        `📊 *Результаты теста нагрузки (100 запросов)*:\n\n` +
+        `⏱ Время выполнения: *${duration} сек*\n` +
+        `✅ Успешно: *${success}*\n` +
+        `⏳ Сервер перегружен (429/квота): *${rateLimited}*\n` +
+        `❌ Прочие ошибки: *${otherErrors}*\n\n` +
+        (sampleErrors.size > 0
+          ? `*Примеры сообщений об ошибках:*\n${Array.from(sampleErrors).slice(0, 3).map(e => `• \`${e}\``).join('\n')}`
+          : '🎉 Все запросы выполнены без ошибок!'),
+        { parse_mode: 'Markdown' }
+      )
+      .catch(() => { });
+  });
+
 };
 
 module.exports = { registerCommands, graduateState, promoteState };
