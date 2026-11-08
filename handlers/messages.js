@@ -1,7 +1,7 @@
-const { isAdmin, daysOfWeek, isGraduated, graduatedLabel } = require('../config');
+﻿const { isAdmin, daysOfWeek, isGraduated, graduatedLabel } = require('../config');
 const { broadcastState, runBroadcast } = require('../broadcast');
 const { getUser, countUsersByFilter, logView } = require('../db');
-const { getTodayImage, getTomorrowImage, getWeekImage, getTodayDayName } = require('../api');
+const { getTodayImage, getTomorrowImage, getWeekImage, getTodayDayName, getScheduleErrorMessage } = require('../api');
 const { InputFile, InlineKeyboard, InputMediaBuilder } = require('grammy');
 const { mainKeyboard } = require('../keyboards');
 
@@ -39,7 +39,7 @@ const registerMessages = (bot) => {
         .editMessageText(
           ctx.chat.id,
           loading.message_id,
-          '❌ Расписание не опубликовано, либо произошла ошибка!'
+          getScheduleErrorMessage(err)
         )
         .catch(() => { });
     }
@@ -77,7 +77,7 @@ const registerMessages = (bot) => {
         .editMessageText(
           ctx.chat.id,
           loading.message_id,
-          '❌ Расписание не опубликовано, либо произошла ошибка!'
+          getScheduleErrorMessage(err)
         )
         .catch(() => { });
     }
@@ -105,7 +105,7 @@ const registerMessages = (bot) => {
         .editMessageText(
           ctx.chat.id,
           loading.message_id,
-          '❌ Расписание не опубликовано, либо произошла ошибка!'
+          getScheduleErrorMessage(err)
         )
         .catch(() => { });
     }

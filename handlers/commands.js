@@ -1,6 +1,6 @@
-const { InlineKeyboard, InputFile, InputMediaBuilder } = require('grammy');
+﻿const { InlineKeyboard, InputFile, InputMediaBuilder } = require('grammy');
 const { getUser, deleteUser, getStats, logView, getGroupWrapped, getPromoUsers } = require('../db');
-const { getTodayImage, getTomorrowImage, getWeekImage, getQueryImage, getRaspImage, getTodayDayName } = require('../api');
+const { getTodayImage, getTomorrowImage, getWeekImage, getQueryImage, getRaspImage, getTodayDayName, getScheduleErrorMessage } = require('../api');
 const { daysOfWeek, isAdmin, API_BASE_URL, GRADUATED_COURSE, GRADUATED_YEARS, isGraduated, graduatedLabel } = require('../config');
 const { courseKeyboard, mainKeyboard } = require('../keyboards');
 const { broadcastState } = require('../broadcast');
@@ -65,7 +65,7 @@ const registerCommands = (bot) => {
         .editMessageText(
           ctx.chat.id,
           loading.message_id,
-          '❌ Расписание не опубликовано, либо произошла ошибка!'
+          getScheduleErrorMessage(err)
         )
         .catch(() => { });
     }
@@ -103,7 +103,7 @@ const registerCommands = (bot) => {
         .editMessageText(
           ctx.chat.id,
           loading.message_id,
-          '❌ Расписание не опубликовано, либо произошла ошибка!'
+          getScheduleErrorMessage(err)
         )
         .catch(() => { });
     }
@@ -143,7 +143,7 @@ const registerCommands = (bot) => {
         .editMessageText(
           ctx.chat.id,
           loading.message_id,
-          '❌ Расписание не опубликовано, либо произошла ошибка!'
+          getScheduleErrorMessage(err)
         )
         .catch(() => { });
     }
@@ -164,7 +164,7 @@ const registerCommands = (bot) => {
       });
     } catch (err) {
       console.error('Ошибка /query:', err);
-      await ctx.reply('❌ Не удалось получить расписание. Попробуйте позже.');
+      await ctx.reply(getScheduleErrorMessage(err, '❌ Не удалось получить расписание. Попробуйте позже.'));
     }
   });
 
@@ -177,7 +177,7 @@ const registerCommands = (bot) => {
       });
     } catch (err) {
       console.error('Ошибка /rasp:', err);
-      await ctx.reply('❌ Не удалось получить расписание звонков. Попробуйте позже.');
+      await ctx.reply(getScheduleErrorMessage(err, '❌ Не удалось получить расписание звонков. Попробуйте позже.'));
     }
   });
 

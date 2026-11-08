@@ -1,6 +1,6 @@
-const { InputFile, InlineKeyboard } = require('grammy');
+﻿const { InputFile, InlineKeyboard } = require('grammy');
 const { saveUser, graduateCourse, graduateGroup, promoteGroup, getUser, toggleNotification, toggleTableType, deleteUser, countUsersByFilter } = require('../db');
-const { getWeekImage, getTodayImage, getTomorrowImage, getTodayDayName } = require('../api');
+const { getWeekImage, getTodayImage, getTomorrowImage, getTodayDayName, isOverloadedError } = require('../api');
 const { isAdmin, GROUPS_CONFIG, daysOfWeek, GRADUATED_COURSE, graduatedLabel, isGraduated } = require('../config');
 const { groupKeyboard, gradCourseKeyboard, gradGroupKeyboard, mainKeyboard, courseKeyboard } = require('../keyboards');
 const { broadcastState } = require('../broadcast');
@@ -136,9 +136,14 @@ const registerCallbacks = (bot) => {
           parse_mode: 'Markdown',
         });
       } catch (err) {
-        const text = err.message.includes('Расписание не найдено')
-          ? '📅 Расписание не найдено.'
-          : '❌ Ошибка API или сети.';
+        let text;
+        if (isOverloadedError(err)) {
+          text = '⏳ Сервер перегружен, попробуйте через пару секунд';
+        } else if (err.message.includes('Расписание не найдено')) {
+          text = '📅 Расписание не найдено.';
+        } else {
+          text = '❌ Ошибка API или сети.';
+        }
         await ctx.answerCallbackQuery({ text, show_alert: true });
       }
       return ctx.answerCallbackQuery();
@@ -159,9 +164,14 @@ const registerCallbacks = (bot) => {
           parse_mode: 'Markdown',
         });
       } catch (err) {
-        const text = err.message.includes('Расписание не найдено')
-          ? '📅 Расписание не найдено.'
-          : '❌ Ошибка API или сети.';
+        let text;
+        if (isOverloadedError(err)) {
+          text = '⏳ Сервер перегружен, попробуйте через пару секунд';
+        } else if (err.message.includes('Расписание не найдено')) {
+          text = '📅 Расписание не найдено.';
+        } else {
+          text = '❌ Ошибка API или сети.';
+        }
         await ctx.answerCallbackQuery({ text, show_alert: true });
       }
       return ctx.answerCallbackQuery();
@@ -187,9 +197,14 @@ const registerCallbacks = (bot) => {
           parse_mode: 'Markdown',
         });
       } catch (err) {
-        const text = err.message.includes('Расписание не найдено')
-          ? '📅 Расписание не найдено.'
-          : '❌ Ошибка API или сети.';
+        let text;
+        if (isOverloadedError(err)) {
+          text = '⏳ Сервер перегружен, попробуйте через пару секунд';
+        } else if (err.message.includes('Расписание не найдено')) {
+          text = '📅 Расписание не найдено.';
+        } else {
+          text = '❌ Ошибка API или сети.';
+        }
         await ctx.answerCallbackQuery({ text, show_alert: true });
       }
       return ctx.answerCallbackQuery();

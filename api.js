@@ -1,4 +1,4 @@
-const { API_BASE_URL, daysOfWeek, GRADUATED_COURSE } = require('./config');
+﻿const { API_BASE_URL, daysOfWeek, GRADUATED_COURSE } = require('./config');
 const groups = require('./groups.json');
 
 const scheduleCourses = Object.keys(groups).filter(course => course !== GRADUATED_COURSE);
@@ -12,8 +12,31 @@ const findCourseByGroup = (group) => {
   return null;
 };
 
+const isOverloadedError = (err) => {
+  if (!err) return false;
+  const msg = String(err.message || '');
+  return msg.includes('перегружен') || msg.includes('429') || msg.includes('503') || /quota|rate limit/i.test(msg);
+};
+
+const getScheduleErrorMessage = (err, defaultMsg = '❌ Расписание не опубликовано, либо произошла ошибка!') => {
+  if (isOverloadedError(err)) {
+    return '⏳ Сервер перегружен, попробуйте через пару секунд';
+  }
+  return defaultMsg;
+};
+
 const fetchScheduleImage = async (url) => {
-  const response = await fetch(url);
+  let response;
+  try {
+    response = await fetch(url);
+  } catch (netErr) {
+    throw new Error('Сервер перегружен, попробуйте через пару секунд');
+  }
+
+  if (response.status === 429 || response.status === 503) {
+    throw new Error('Сервер перегружен, попробуйте через пару секунд');
+  }
+
   if (!response.ok) throw new Error(`API error: ${response.status}`);
 
   const contentType = response.headers.get('content-type');
@@ -22,8 +45,18 @@ const fetchScheduleImage = async (url) => {
     return Buffer.from(arrayBuffer);
   }
 
-  const data = await response.json();
-  throw new Error(data.status === false ? 'Расписание не найдено' : 'Неизвестная ошибка');
+  let data;
+  try {
+    data = await response.json();
+  } catch (jsonErr) {
+    throw new Error('Неизвестная ошибка');
+  }
+
+  if (data?.rateLimit || data?.error === 'rate_limit' || data?.message?.includes('перегружен')) {
+    throw new Error('Сервер перегружен, попробуйте через пару секунд');
+  }
+
+  throw new Error(data?.status === false ? 'Расписание не найдено' : 'Неизвестная ошибка');
 };
 
 const getScheduleImage = async (day, group, extraParams = {}) => {
@@ -100,4 +133,6 @@ module.exports = {
   getTodayImage,
   getTomorrowImage,
   getTodayDayName,
+  isOverloadedError,
+  getScheduleErrorMessage,
 };
