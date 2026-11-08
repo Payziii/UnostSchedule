@@ -328,11 +328,14 @@ const registerCommands = (bot) => {
   bot.command(['test_load', 'testload'], async (ctx) => {
     if (!isAdmin(ctx.from.id)) return ctx.reply('❌ Доступ запрещён.');
 
-    const loading = await ctx.reply('⏳ Запускаю 100 одновременных запросов к API...');
+    const user = await getUser(ctx.from.id);
+    const targetGroup = user?.group_name || 'ИСП-4304';
+
+    const loading = await ctx.reply(`⏳ Запускаю 100 одновременных запросов к API (группа: ${targetGroup})...`);
     const startTime = Date.now();
 
     const requests = Array.from({ length: 100 }, (_, i) =>
-      getWeekImage('ИСП-3304', { test_req: i })
+      getWeekImage(targetGroup, { test_req: i })
     );
 
     const results = await Promise.allSettled(requests);
