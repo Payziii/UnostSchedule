@@ -427,12 +427,58 @@ const registerCallbacks = (bot) => {
     // --- Broadcast: выбор с клавиатурой или без ---
     if (data === 'bc_keyboard_yes' || data === 'bc_keyboard_no') {
       state.withKeyboard = data === 'bc_keyboard_yes';
+      state.stage = 'choose_send_method';
+      broadcastState.set(userId, state);
+
+      const keyboard = new InlineKeyboard()
+        .text('📋 Копированием', 'bc_method_copy').row()
+        .text('↗️ Пересылкой', 'bc_method_forward').row()
+        .text('◀️ Назад', 'bc_back_keyboard');
+
+      await ctx.editMessageText(
+        `${state.withKeyboard ? '✅ С клавиатурой' : '❌ Без клавиатуры'}\n\nВыберите способ отправки:\n` +
+        `• *Копированием* — сообщение отправится как новое (от имени бота)\n` +
+        `• *Пересылкой* — сообщение будет переслано (видно источник, подходит для опросов, постов и т.д.)`,
+        { parse_mode: 'Markdown', reply_markup: keyboard }
+      );
+      return ctx.answerCallbackQuery();
+    }
+
+    // --- Broadcast: выбор способа отправки ---
+    if (data === 'bc_method_copy' || data === 'bc_method_forward') {
+      state.sendMethod = data === 'bc_method_forward' ? 'forward' : 'copy';
       state.stage = 'await_text';
       broadcastState.set(userId, state);
 
+      const methodLabel = state.sendMethod === 'forward' ? '↗️ Пересылкой' : '📋 Копированием';
       await ctx.editMessageText(
-        `${state.withKeyboard ? '✅ С клавиатурой' : '❌ Без клавиатуры'}\n\nОтправьте текст рассылки.`,
+        `Способ отправки: *${methodLabel}*\n\nОтправьте сообщение для рассылки.`,
         { parse_mode: 'Markdown' }
+      );
+      return ctx.answerCallbackQuery();
+    }
+
+    // --- Broadcast: вернуться к выбору клавиатуры ---
+    if (data === 'bc_back_keyboard') {
+      state.stage = 'confirm_keyboard';
+      state.sendMethod = undefined;
+      broadcastState.set(userId, state);
+
+      const notifType = state.notificationType === 'mandatory' ? null : state.notificationType;
+      const count = await countUsersByFilter(state.filter, notifType);
+
+      const modeLabels = { 'all': 'все пользователи', 'course': `курс ${state.filter.course || ''}`, 'group': `группа ${state.filter.group_name || ''}`, 'graduated': 'выпустившиеся' };
+      const audience = modeLabels[state.mode] || 'все пользователи';
+
+      const keyboard = new InlineKeyboard()
+        .text('✅ С клавиатурой', 'bc_keyboard_yes').row()
+        .text('❌ Без клавиатуры', 'bc_keyboard_no').row()
+        .text('◀️ Назад', 'bc_back_target');
+
+      await ctx.editMessageText(
+        `Аудитория: *${audience}*\nРассылку получат *${count}* пользователей\n\n` +
+        `Добавить клавиатуру к рассылке?\n_(Отправит дополнительное сообщение с кнопками быстрого доступа)_`,
+        { parse_mode: 'Markdown', reply_markup: keyboard }
       );
       return ctx.answerCallbackQuery();
     }

@@ -219,7 +219,8 @@ const registerMessages = (bot) => {
 
     if (state.stage === 'await_text') {
       const notifType = state.notificationType === 'mandatory' ? null : state.notificationType;
-      runBroadcast(bot, userId, ctx.message.message_id, state.filter, notifType, state.withKeyboard || false);
+      const sendMethod = state.sendMethod || 'copy';
+      runBroadcast(bot, userId, ctx.message.message_id, ctx.chat.id, state.filter, notifType, state.withKeyboard || false, sendMethod);
       broadcastState.delete(userId);
     }
   });

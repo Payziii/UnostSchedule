@@ -5,7 +5,7 @@ const broadcastState = new Map();
 
 const sleep = (ms) => new Promise(res => setTimeout(res, ms));
 
-const runBroadcast = async (bot, adminId, messageId, filter, notificationType, withKeyboard = false) => {
+const runBroadcast = async (bot, adminId, messageId, chatId, filter, notificationType, withKeyboard = false, sendMethod = 'copy') => {
   const users = await getUsersByFilter(filter, notificationType);
 
   if (users.length === 0) {
@@ -15,9 +15,10 @@ const runBroadcast = async (bot, adminId, messageId, filter, notificationType, w
 
   let success = 0, blocked = 0, errors = 0;
 
+  const methodLabel = sendMethod === 'forward' ? 'пересылкой' : 'копированием';
   await bot.api.sendMessage(
     adminId,
-    `🚀 Рассылка запущена на *${users.length}* пользователей...`,
+    `🚀 Рассылка запущена на *${users.length}* пользователей (${methodLabel})...`,
     { parse_mode: 'Markdown' }
   );
 
@@ -32,7 +33,11 @@ const runBroadcast = async (bot, adminId, messageId, filter, notificationType, w
         await sleep(100);
       }
 
-      await bot.api.copyMessage(row.user_id, adminId, messageId);
+      if (sendMethod === 'forward') {
+        await bot.api.forwardMessage(row.user_id, chatId, messageId);
+      } else {
+        await bot.api.copyMessage(row.user_id, chatId, messageId);
+      }
 
       success++;
     } catch (e) {
